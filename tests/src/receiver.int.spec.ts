@@ -18,7 +18,7 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
   let t: TestDatabase;
   let config: AppConfig;
   let receiver: ReceiverHandle;
-  const runId = randomUUID();
+  const runId: string = randomUUID();
 
   beforeAll(async () => {
     const port = await freePort();

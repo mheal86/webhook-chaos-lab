@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "test": "jest --runInBand",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -12,8 +12,11 @@
     "@lab/receiver": "workspace:*",
     "@lab/shared": "workspace:*",
     "@lab/worker": "workspace:*",
+    "@nestjs/common": "11.2.7",
     "bullmq": "6.3.14",
-    "pg": "8.23.1"
+    "pg": "8.23.1",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
   },
   "devDependencies": {
     "@nestjs/testing": "11.2.7",

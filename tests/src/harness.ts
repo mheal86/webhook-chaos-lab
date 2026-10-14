@@ -234,7 +234,7 @@ export function spawnApp(app: 'worker' | 'api' | 'receiver', config: AppConfig):
     proc,
     output: () => out,
     kill: async () => {
-      if (proc.exitCode !== null) return;
+      if (proc.exitCode !== null || proc.signalCode !== null) return;
       const exited = new Promise<void>((r) => proc.once('exit', () => r()));
       proc.kill('SIGKILL');
       await exited;
