@@ -1,0 +1,11 @@
+node_modules
+dist
+.tools
+.env
+*.log
+coverage
+packages/db/src/generated
+apps/web/test-results
+apps/web/playwright-report
+.pgdata
+tests/.tmp

@@ -1,0 +1,280 @@
+// Webhook Chaos Lab schema.
+// Sender tables: endpoints, scenario_runs, events, deliveries, delivery_attempts, outbox.
+// Receiver (fixture) tables: receiver_requests, processed_events, business_effects,
+// counter_projections, order_projections. The receiver owns its transactions; it never shares one
+// with the sender. Partial indexes and the "one active run" constraint live in the migration SQL.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum DeliveryState {
+  queued
+  in_flight
+  retry_wait
+  succeeded
+  dead
+}
+
+enum AttemptOutcome {
+  in_progress
+  success
+  http_retryable
+  http_permanent
+  network_error
+  timeout
+  worker_lost
+}
+
+enum RunStatus {
+  open
+  running
+  passed
+  failed
+}
+
+enum OutboxStatus {
+  pending
+  published
+}
+
+enum ReceiverResult {
+  received
+  processed
+  duplicate
+  stale
+  conflict
+  rejected_signature
+  rejected_bad_request
+  injected_failure
+  error
+}
+
+model Endpoint {
+  id         String   @id
+  consumerId String   @unique @map("consumer_id")
+  name       String
+  url        String
+  /// Name of the environment variable holding the signing secret (never the secret itself).
+  secretRef  String   @map("secret_ref")
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  deliveries Delivery[]
+
+  @@map("endpoints")
+}
+
+model ScenarioRun {
+  id            String    @id
+  type          String
+  status        RunStatus
+  seed          Int
+  /// Fixture phase. Fault rules may be bound to a phase (e.g. exhaust_and_replay flips 1 -> 2).
+  phase         Int       @default(1)
+  config        Json
+  faultPlan     Json      @map("fault_plan")
+  steps         Json
+  stepIndex     Int       @default(0) @map("step_index")
+  expected      Json
+  result        Json?
+  failureReason String?   @map("failure_reason")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt     DateTime? @map("started_at") @db.Timestamptz(3)
+  finishedAt    DateTime? @map("finished_at") @db.Timestamptz(3)
+
+  events     Event[]
+  deliveries Delivery[]
+
+  @@index([createdAt])
+  @@index([status])
+  @@map("scenario_runs")
+}
+
+model Event {
+  id            String   @id
+  runId         String   @map("run_id")
+  type          String
+  aggregateId   String   @map("aggregate_id")
+  sequence      Int
+  /// Logical index of the event within its run (emission order); input of the fault plan.
+  logicalIndex  Int      @map("logical_index")
+  occurredAt    DateTime @map("occurred_at") @db.Timestamptz(3)
+  /// The exact serialized envelope that is hashed, signed and sent on every attempt.
+  rawPayload    String   @map("raw_payload")
+  payloadHash   String   @map("payload_hash")
+  correlationId String?  @map("correlation_id")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  run        ScenarioRun @relation(fields: [runId], references: [id])
+  deliveries Delivery[]
+
+  @@index([runId, logicalIndex])
+  @@index([type, createdAt])
+  @@index([createdAt])
+  @@map("events")
+}
+
+model Delivery {
+  id                 String        @id
+  eventId            String        @map("event_id")
+  endpointId         String        @map("endpoint_id")
+  runId              String        @map("run_id")
+  replayOfDeliveryId String?       @map("replay_of_delivery_id")
+  /// 1-based ordinal among the event's deliveries (replays continue the numbering).
+  ordinal            Int
+  state              DeliveryState @default(queued)
+  attemptCount       Int           @default(0) @map("attempt_count")
+  maxAttempts        Int           @map("max_attempts")
+  nextAttemptAt      DateTime?     @map("next_attempt_at") @db.Timestamptz(3)
+  leaseUntil         DateTime?     @map("lease_until") @db.Timestamptz(3)
+  /// Fencing token of the worker currently holding the claim.
+  claimToken         String?       @map("claim_token")
+  /// Bumped whenever a new dispatch intent is issued; stale jobs are rejected on claim.
+  generation         Int           @default(1)
+  terminalReason     String?       @map("terminal_reason")
+  lastErrorCode      String?       @map("last_error_code")
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime      @default(now()) @map("updated_at") @db.Timestamptz(3)
+  finishedAt         DateTime?     @map("finished_at") @db.Timestamptz(3)
+
+  event    Event       @relation(fields: [eventId], references: [id])
+  endpoint Endpoint    @relation(fields: [endpointId], references: [id])
+  run      ScenarioRun @relation(fields: [runId], references: [id])
+  replayOf Delivery?   @relation("Replay", fields: [replayOfDeliveryId], references: [id])
+  replays  Delivery[]  @relation("Replay")
+  attempts DeliveryAttempt[]
+  outbox   Outbox[]
+
+  // NOTE: deliberately no unique(eventId, endpointId): duplicates and replays need several deliveries.
+  @@unique([eventId, endpointId, ordinal])
+  @@index([runId, state])
+  @@index([eventId])
+  @@index([state, nextAttemptAt])
+  @@index([replayOfDeliveryId])
+  @@index([createdAt])
+  @@map("deliveries")
+}
+
+model DeliveryAttempt {
+  id               String         @id
+  deliveryId       String         @map("delivery_id")
+  runId            String         @map("run_id")
+  attemptNo        Int            @map("attempt_no")
+  generation       Int
+  claimToken       String         @map("claim_token")
+  startedAt        DateTime       @map("started_at") @db.Timestamptz(3)
+  finishedAt       DateTime?      @map("finished_at") @db.Timestamptz(3)
+  outcome          AttemptOutcome @default(in_progress)
+  httpStatus       Int?           @map("http_status")
+  errorCode        String?        @map("error_code")
+  durationMs       Int?           @map("duration_ms")
+  /// Bounded preview (<= 8 KiB) of the response body; the read itself is also bounded.
+  responsePreview  String?        @map("response_preview")
+  retryAfterApplied Boolean       @default(false) @map("retry_after_applied")
+  scheduledRetryAt DateTime?      @map("scheduled_retry_at") @db.Timestamptz(3)
+  /// A result reported by a worker that had already lost its lease; informational only.
+  lateResult       Json?          @map("late_result")
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id])
+
+  @@unique([deliveryId, attemptNo])
+  @@index([runId, startedAt])
+  @@index([outcome])
+  @@map("delivery_attempts")
+}
+
+model Outbox {
+  id          String       @id
+  deliveryId  String       @map("delivery_id")
+  generation  Int
+  availableAt DateTime     @map("available_at") @db.Timestamptz(3)
+  status      OutboxStatus @default(pending)
+  publishedAt DateTime?    @map("published_at") @db.Timestamptz(3)
+  /// BullMQ job id: deterministic per (delivery, generation).
+  jobId       String       @map("job_id")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id])
+
+  @@unique([deliveryId, generation])
+  @@index([status, availableAt])
+  @@map("outbox")
+}
+
+model ReceiverRequest {
+  id            String         @id
+  seq           Int            @unique @default(autoincrement())
+  runId         String?        @map("run_id")
+  consumerId    String         @map("consumer_id")
+  eventId       String?        @map("event_id")
+  deliveryId    String?        @map("delivery_id")
+  attemptNo     Int?           @map("attempt_no")
+  eventSequence Int?           @map("event_sequence")
+  receivedAt    DateTime       @default(now()) @map("received_at") @db.Timestamptz(3)
+  completedAt   DateTime?      @map("completed_at") @db.Timestamptz(3)
+  result        ReceiverResult @default(received)
+  httpStatus    Int?           @map("http_status")
+  detail        String?
+  signatureValid Boolean?      @map("signature_valid")
+  payloadHash   String?        @map("payload_hash")
+
+  @@index([runId, seq])
+  @@index([eventId])
+  @@index([result])
+  @@map("receiver_requests")
+}
+
+model ProcessedEvent {
+  consumerId  String   @map("consumer_id")
+  eventId     String   @map("event_id")
+  payloadHash String   @map("payload_hash")
+  runId       String?  @map("run_id")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@id([consumerId, eventId])
+  @@index([runId])
+  @@map("processed_events")
+}
+
+model BusinessEffect {
+  id         String   @id
+  runId      String?  @map("run_id")
+  consumerId String   @map("consumer_id")
+  eventId    String   @map("event_id")
+  kind       String
+  data       Json
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  // At most one business effect per (consumer, event): belt and braces next to processed_events.
+  @@unique([consumerId, eventId])
+  @@index([runId])
+  @@map("business_effects")
+}
+
+model CounterProjection {
+  runId       String   @map("run_id")
+  aggregateId String   @map("aggregate_id")
+  value       Int
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@id([runId, aggregateId])
+  @@map("counter_projections")
+}
+
+model OrderProjection {
+  runId       String   @map("run_id")
+  aggregateId String   @map("aggregate_id")
+  sequence    Int
+  state       Json
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@id([runId, aggregateId])
+  @@map("order_projections")
+}
