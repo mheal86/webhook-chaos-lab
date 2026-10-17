@@ -1,0 +1,141 @@
+# Full stack: PostgreSQL, Redis (AOF), one-shot migrate+seed, receiver, worker, api, dashboard.
+#   docker compose up --build        -> dashboard on http://127.0.0.1:8080
+# Every published port is bound to 127.0.0.1 only. Secrets below are local-only samples.
+# NOTE: not executed on the authoring machine (no Docker there); see docs/verification.md.
+
+x-app-env: &app-env
+  NODE_ENV: production
+  LOG_LEVEL: info
+  DATABASE_URL: postgresql://lab:lab@postgres:5432/lab
+  REDIS_URL: redis://redis:6379
+  QUEUE_PREFIX: lab
+  QUEUE_NAME: webhook-deliveries
+  API_HOST: 0.0.0.0
+  API_PORT: '3000'
+  RECEIVER_HOST: 0.0.0.0
+  RECEIVER_PORT: '3100'
+  WORKER_HEALTH_PORT: '3200'
+  RECEIVER_URL: http://receiver:3100/webhooks/receiver-fixture
+  ALLOWED_RECEIVER_URLS: http://receiver:3100/webhooks/
+  RECEIVER_SECRET: local-dev-secret-change-me
+  LAB_CONTROL_TOKEN: local-dev-control-token
+
+x-app-build: &app-build
+  context: .
+  target: app
+
+x-node-health: &node-health
+  interval: 5s
+  timeout: 3s
+  retries: 20
+  start_period: 10s
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: lab
+      POSTGRES_DB: lab
+    ports: ['127.0.0.1:5432:5432']
+    volumes: ['pgdata:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lab -d lab']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7.4-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports: ['127.0.0.1:6379:6379']
+    volumes: ['redisdata:/data']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    build: *app-build
+    image: webhook-chaos-lab-app
+    environment: *app-env
+    working_dir: /app/packages/db
+    command:
+      [
+        'sh',
+        '-c',
+        './node_modules/.bin/prisma migrate deploy && ./node_modules/.bin/tsx prisma/seed.ts',
+      ]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: 'no'
+
+  receiver:
+    build: *app-build
+    image: webhook-chaos-lab-app
+    environment: *app-env
+    command: ['node', 'apps/receiver/dist/main.js']
+    ports: ['127.0.0.1:3100:3100']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      <<: *node-health
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3100/health/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+    restart: unless-stopped
+
+  worker:
+    build: *app-build
+    image: webhook-chaos-lab-app
+    environment: *app-env
+    command: ['node', 'apps/worker/dist/main.js']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      <<: *node-health
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3200/health/live').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+    restart: unless-stopped
+
+  api:
+    build: *app-build
+    image: webhook-chaos-lab-app
+    environment: *app-env
+    command: ['node', 'apps/api/dist/main.js']
+    ports: ['127.0.0.1:3000:3000']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      <<: *node-health
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+    restart: unless-stopped
+
+  web:
+    build: { context: ., target: web }
+    ports: ['127.0.0.1:8080:80']
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
