@@ -1,15 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import {
-  decideAfterAttempt,
-  jitterUnitFor,
-  type RetryPolicy,
-  type RunConfig,
-} from '@lab/shared';
+import { decideAfterAttempt, jitterUnitFor, type RetryPolicy, type RunConfig } from '@lab/shared';
 import { Prisma, TX_OPTIONS, type Db } from '../client';
 import { applyAttemptDecision } from './complete';
 import { jobIdFor } from './events';
 
-export function policyFromConfig(config: RunConfig | null | undefined, maxAttempts?: number): RetryPolicy {
+export function policyFromConfig(
+  config: RunConfig | null | undefined,
+  maxAttempts?: number,
+): RetryPolicy {
   const c = config as Partial<RunConfig> | null | undefined;
   return {
     maxAttempts: maxAttempts ?? c?.maxAttempts ?? 5,
@@ -77,7 +75,12 @@ export async function recoverExpiredLeases(
         deliveryId: row.id,
         attemptNo: row.attempt_count,
         decision,
-        observation: { httpStatus: null, errorCode: 'worker_lost', durationMs: null, responsePreview: null },
+        observation: {
+          httpStatus: null,
+          errorCode: 'worker_lost',
+          durationMs: null,
+          responsePreview: null,
+        },
         fence: Prisma.sql`lease_until < now()`,
       });
       if (applied) {

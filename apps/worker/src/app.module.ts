@@ -16,7 +16,8 @@ export class WorkerModule {
         { provide: APP_CONFIG, useValue: config },
         {
           provide: DB,
-          useValue: overrides.db ?? createDb(config.DATABASE_URL, { max: config.WORKER_CONCURRENCY + 4 }),
+          useValue:
+            overrides.db ?? createDb(config.DATABASE_URL, { max: config.WORKER_CONCURRENCY + 4 }),
         },
         { provide: LOGGER, useValue: overrides.logger ?? createLogger('worker', config.LOG_LEVEL) },
       ],

@@ -10,7 +10,9 @@ import {
 const policy: RetryPolicy = { ...DEFAULT_RETRY_POLICY, jitter: 0 };
 
 describe('classifyHttpStatus', () => {
-  it.each([200, 201, 204, 299])('%i is success', (s) => expect(classifyHttpStatus(s)).toBe('success'));
+  it.each([200, 201, 204, 299])('%i is success', (s) =>
+    expect(classifyHttpStatus(s)).toBe('success'),
+  );
   it.each([408, 429, 500, 502, 503, 599])('%i is retryable', (s) =>
     expect(classifyHttpStatus(s)).toBe('retryable'),
   );
@@ -63,7 +65,13 @@ describe('decideAfterAttempt (fake clock)', () => {
 
   it('2xx succeeds', () => {
     expect(
-      decideAfterAttempt({ attemptNo: 1, policy, nowMs: T0, result: { kind: 'http', status: 200 }, jitterUnit: 0 }).kind,
+      decideAfterAttempt({
+        attemptNo: 1,
+        policy,
+        nowMs: T0,
+        result: { kind: 'http', status: 200 },
+        jitterUnit: 0,
+      }).kind,
     ).toBe('succeeded');
   });
 
@@ -71,7 +79,13 @@ describe('decideAfterAttempt (fake clock)', () => {
     const schedule: number[] = [];
     let now = T0;
     for (let attemptNo = 1; attemptNo < policy.maxAttempts; attemptNo++) {
-      const d = decideAfterAttempt({ attemptNo, policy, nowMs: now, result: { kind: 'http', status: 500 }, jitterUnit: 0 });
+      const d = decideAfterAttempt({
+        attemptNo,
+        policy,
+        nowMs: now,
+        result: { kind: 'http', status: 500 },
+        jitterUnit: 0,
+      });
       if (d.kind !== 'retry') throw new Error('expected retry');
       expect(d.nextAttemptAtMs).toBe(now + d.delayMs);
       schedule.push(d.delayMs);
@@ -82,38 +96,86 @@ describe('decideAfterAttempt (fake clock)', () => {
   });
 
   it('goes dead when the budget is exhausted, counting every attempt', () => {
-    const d = decideAfterAttempt({ attemptNo: 5, policy, nowMs: T0, result: { kind: 'http', status: 503 }, jitterUnit: 0 });
+    const d = decideAfterAttempt({
+      attemptNo: 5,
+      policy,
+      nowMs: T0,
+      result: { kind: 'http', status: 503 },
+      jitterUnit: 0,
+    });
     expect(d).toMatchObject({ kind: 'dead', reason: 'attempts_exhausted', errorCode: 'http_503' });
   });
 
   it('a lost worker consumes budget like any other attempt', () => {
-    const d = decideAfterAttempt({ attemptNo: 5, policy, nowMs: T0, result: { kind: 'worker_lost' }, jitterUnit: 0 });
+    const d = decideAfterAttempt({
+      attemptNo: 5,
+      policy,
+      nowMs: T0,
+      result: { kind: 'worker_lost' },
+      jitterUnit: 0,
+    });
     expect(d).toMatchObject({ kind: 'dead', outcome: 'worker_lost' });
   });
 
   it.each([400, 401, 404, 409])('%i is a permanent failure without retry', (status) => {
-    const d = decideAfterAttempt({ attemptNo: 1, policy, nowMs: T0, result: { kind: 'http', status }, jitterUnit: 0 });
-    expect(d).toMatchObject({ kind: 'dead', reason: 'permanent_failure', outcome: 'http_permanent' });
+    const d = decideAfterAttempt({
+      attemptNo: 1,
+      policy,
+      nowMs: T0,
+      result: { kind: 'http', status },
+      jitterUnit: 0,
+    });
+    expect(d).toMatchObject({
+      kind: 'dead',
+      reason: 'permanent_failure',
+      outcome: 'http_permanent',
+    });
   });
 
   it('treats a redirect as a permanent failure with a dedicated code', () => {
-    const d = decideAfterAttempt({ attemptNo: 1, policy, nowMs: T0, result: { kind: 'http', status: 302 }, jitterUnit: 0 });
+    const d = decideAfterAttempt({
+      attemptNo: 1,
+      policy,
+      nowMs: T0,
+      result: { kind: 'http', status: 302 },
+      jitterUnit: 0,
+    });
     expect(d).toMatchObject({ kind: 'dead', errorCode: 'redirect_blocked' });
   });
 
   it('timeouts and network errors are retryable', () => {
-    expect(decideAfterAttempt({ attemptNo: 1, policy, nowMs: T0, result: { kind: 'timeout' }, jitterUnit: 0 })).toMatchObject({
+    expect(
+      decideAfterAttempt({
+        attemptNo: 1,
+        policy,
+        nowMs: T0,
+        result: { kind: 'timeout' },
+        jitterUnit: 0,
+      }),
+    ).toMatchObject({
       kind: 'retry',
       outcome: 'timeout',
     });
     expect(
-      decideAfterAttempt({ attemptNo: 1, policy, nowMs: T0, result: { kind: 'network_error', code: 'econnrefused' }, jitterUnit: 0 }),
+      decideAfterAttempt({
+        attemptNo: 1,
+        policy,
+        nowMs: T0,
+        result: { kind: 'network_error', code: 'econnrefused' },
+        jitterUnit: 0,
+      }),
     ).toMatchObject({ kind: 'retry', outcome: 'network_error', errorCode: 'network_econnrefused' });
   });
 
   it('local (allowlist/secret) errors are permanent', () => {
     expect(
-      decideAfterAttempt({ attemptNo: 1, policy, nowMs: T0, result: { kind: 'local_error', code: 'endpoint_not_allowlisted' }, jitterUnit: 0 }),
+      decideAfterAttempt({
+        attemptNo: 1,
+        policy,
+        nowMs: T0,
+        result: { kind: 'local_error', code: 'endpoint_not_allowlisted' },
+        jitterUnit: 0,
+      }),
     ).toMatchObject({ kind: 'dead', errorCode: 'endpoint_not_allowlisted' });
   });
 

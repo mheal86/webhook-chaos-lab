@@ -27,7 +27,11 @@ function redact(fields: Record<string, unknown>): Record<string, unknown> {
 }
 
 /** Minimal JSON-lines logger. Sensitive keys are redacted; headers are never logged wholesale. */
-export function createLogger(service: string, level: LogLevel = 'info', base: LogFields = {}): Logger {
+export function createLogger(
+  service: string,
+  level: LogLevel = 'info',
+  base: LogFields = {},
+): Logger {
   const write = (lvl: LogLevel, msg: string, fields?: LogFields) => {
     if (ORDER[lvl] < ORDER[level]) return;
     const line = JSON.stringify({

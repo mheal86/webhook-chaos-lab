@@ -32,7 +32,10 @@ export async function replayDeliveryTx(tx: Tx, deliveryId: string): Promise<Repl
   const parent = parents[0];
   if (!parent) throw new DomainError('not_found', `delivery ${deliveryId} not found`);
   if (parent.state !== 'dead' && parent.state !== 'succeeded') {
-    throw new DomainError('not_terminal', `delivery is ${parent.state}; only terminal deliveries can be replayed`);
+    throw new DomainError(
+      'not_terminal',
+      `delivery is ${parent.state}; only terminal deliveries can be replayed`,
+    );
   }
 
   const active = await tx.$queryRaw<Array<{ id: string }>>`
@@ -57,7 +60,12 @@ export async function replayDeliveryTx(tx: Tx, deliveryId: string): Promise<Repl
     INSERT INTO outbox (id, delivery_id, generation, available_at, status, job_id, created_at)
     VALUES (${randomUUID()}, ${newId}, 1, now(), 'pending', ${jobIdFor(newId, 1)}, now())`;
 
-  return { deliveryId: newId, replayOfDeliveryId: parent.id, eventId: parent.event_id, ordinal: next_ordinal };
+  return {
+    deliveryId: newId,
+    replayOfDeliveryId: parent.id,
+    eventId: parent.event_id,
+    ordinal: next_ordinal,
+  };
 }
 
 /**

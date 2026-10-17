@@ -13,7 +13,9 @@ function findRedisBin() {
   const base = join(root, '.tools', 'redis');
   if (!existsSync(base)) return null;
   const dir = readdirSync(base).find((d) => d.startsWith('Redis-'));
-  return dir ? join(base, dir, process.platform === 'win32' ? 'redis-server.exe' : 'redis-server') : null;
+  return dir
+    ? join(base, dir, process.platform === 'win32' ? 'redis-server.exe' : 'redis-server')
+    : null;
 }
 
 const { default: EmbeddedPostgres } = await import('embedded-postgres');
@@ -40,15 +42,21 @@ const redisBin = process.env.REDIS_SERVER_BIN ?? findRedisBin();
 if (redisBin) {
   const redisDir = join(root, '.tools', 'redis-data');
   mkdirSync(redisDir, { recursive: true });
-  redis = spawn(redisBin, ['--port', String(REDIS_PORT), '--appendonly', 'yes', '--dir', redisDir], {
-    stdio: 'ignore',
-  });
+  redis = spawn(
+    redisBin,
+    ['--port', String(REDIS_PORT), '--appendonly', 'yes', '--dir', redisDir],
+    {
+      stdio: 'ignore',
+    },
+  );
 }
 
 console.log('Local infrastructure is up:');
 console.log(`  DATABASE_URL=postgresql://lab:lab@127.0.0.1:${PG_PORT}/lab`);
 console.log(`  TEST_DATABASE_ADMIN_URL=postgresql://lab:lab@127.0.0.1:${PG_PORT}/postgres`);
-console.log(`  REDIS_URL=redis://127.0.0.1:${REDIS_PORT}${redis ? '' : '  (redis binary not found)'}`);
+console.log(
+  `  REDIS_URL=redis://127.0.0.1:${REDIS_PORT}${redis ? '' : '  (redis binary not found)'}`,
+);
 if (redisBin) console.log(`  REDIS_SERVER_BIN=${redisBin}`);
 console.log('Press Ctrl+C to stop.');
 

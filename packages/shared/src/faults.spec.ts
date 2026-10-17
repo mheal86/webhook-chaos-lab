@@ -36,33 +36,62 @@ describe('decideFault', () => {
   const plan: FaultPlan = {
     seed: 5,
     rules: [
-      { phase: 1, eventIndex: 0, attemptNo: { from: 1, to: 2 }, action: { kind: 'respond', status: 500 } },
+      {
+        phase: 1,
+        eventIndex: 0,
+        attemptNo: { from: 1, to: 2 },
+        action: { kind: 'respond', status: 500 },
+      },
       { attemptNo: 3, deliveryOrdinal: 2, action: { kind: 'sign_invalid' } },
     ],
   };
 
   it('matches by phase, event index and attempt range', () => {
-    expect(decideFault(plan, 1, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 1 })).toEqual({ kind: 'respond', status: 500 });
-    expect(decideFault(plan, 1, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 2 })).toEqual({ kind: 'respond', status: 500 });
-    expect(decideFault(plan, 1, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 3 })).toEqual({ kind: 'none' });
-    expect(decideFault(plan, 2, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 1 })).toEqual({ kind: 'none' });
-    expect(decideFault(plan, 1, { eventIndex: 1, deliveryOrdinal: 1, attemptNo: 1 })).toEqual({ kind: 'none' });
+    expect(decideFault(plan, 1, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 1 })).toEqual({
+      kind: 'respond',
+      status: 500,
+    });
+    expect(decideFault(plan, 1, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 2 })).toEqual({
+      kind: 'respond',
+      status: 500,
+    });
+    expect(decideFault(plan, 1, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 3 })).toEqual({
+      kind: 'none',
+    });
+    expect(decideFault(plan, 2, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 1 })).toEqual({
+      kind: 'none',
+    });
+    expect(decideFault(plan, 1, { eventIndex: 1, deliveryOrdinal: 1, attemptNo: 1 })).toEqual({
+      kind: 'none',
+    });
   });
 
   it('matches by delivery ordinal', () => {
-    expect(decideFault(plan, 1, { eventIndex: 9, deliveryOrdinal: 2, attemptNo: 3 })).toEqual({ kind: 'sign_invalid' });
-    expect(decideFault(plan, 1, { eventIndex: 9, deliveryOrdinal: 1, attemptNo: 3 })).toEqual({ kind: 'none' });
+    expect(decideFault(plan, 1, { eventIndex: 9, deliveryOrdinal: 2, attemptNo: 3 })).toEqual({
+      kind: 'sign_invalid',
+    });
+    expect(decideFault(plan, 1, { eventIndex: 9, deliveryOrdinal: 1, attemptNo: 3 })).toEqual({
+      kind: 'none',
+    });
   });
 
   it('null plan means no fault', () => {
-    expect(decideFault(null, 1, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 1 })).toEqual({ kind: 'none' });
+    expect(decideFault(null, 1, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 1 })).toEqual({
+      kind: 'none',
+    });
   });
 
   it('random failures reproduce for the same seed and differ across seeds', () => {
-    const mk = (seed: number): FaultPlan => ({ seed, rules: [], randomFailure: { rate: 0.5, status: 500 } });
+    const mk = (seed: number): FaultPlan => ({
+      seed,
+      rules: [],
+      randomFailure: { rate: 0.5, status: 500 },
+    });
     const trace = (p: FaultPlan) =>
       Array.from({ length: 200 }, (_, i) =>
-        decideFault(p, 1, { eventIndex: i, deliveryOrdinal: 1, attemptNo: 1 }).kind === 'respond' ? 1 : 0,
+        decideFault(p, 1, { eventIndex: i, deliveryOrdinal: 1, attemptNo: 1 }).kind === 'respond'
+          ? 1
+          : 0,
       ).join('');
     expect(trace(mk(11))).toBe(trace(mk(11)));
     expect(trace(mk(11))).not.toBe(trace(mk(12)));
@@ -75,7 +104,9 @@ describe('decideFault', () => {
 describe('scenario blueprints', () => {
   it('same seed + config reproduce the same blueprint', () => {
     for (const t of SCENARIO_TYPES) {
-      expect(buildBlueprint(t, 3, { eventCount: 2 })).toEqual(buildBlueprint(t, 3, { eventCount: 2 }));
+      expect(buildBlueprint(t, 3, { eventCount: 2 })).toEqual(
+        buildBlueprint(t, 3, { eventCount: 2 }),
+      );
     }
   });
 
@@ -91,7 +122,9 @@ describe('scenario blueprints', () => {
     const bp = buildBlueprint('timeout_after_commit', 1, { httpTimeoutMs: 800 });
     const a1 = decideFault(bp.faultPlan, 1, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 1 });
     expect(a1.kind === 'commit_then_delay' && a1.delayMs > 800).toBe(true);
-    expect(decideFault(bp.faultPlan, 1, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 2 }).kind).toBe('none');
+    expect(
+      decideFault(bp.faultPlan, 1, { eventIndex: 0, deliveryOrdinal: 1, attemptNo: 2 }).kind,
+    ).toBe('none');
   });
 
   it('exhaust_and_replay fails in phase 1 and is healthy in phase 2', () => {
@@ -103,7 +136,9 @@ describe('scenario blueprints', () => {
 
   it('out_of_order sends sequences 3,1,2 one step at a time', () => {
     const bp = buildBlueprint('out_of_order', 1);
-    const seqs = bp.steps.flatMap((s) => (s.kind === 'emit' ? s.events.map((e) => e.sequence) : []));
+    const seqs = bp.steps.flatMap((s) =>
+      s.kind === 'emit' ? s.events.map((e) => e.sequence) : [],
+    );
     expect(seqs).toEqual([3, 1, 2]);
     expect(bp.steps.filter((s) => s.kind === 'await_terminal')).toHaveLength(3);
   });
@@ -137,7 +172,12 @@ describe('allowlist and redis url', () => {
   });
 
   it('parses redis urls', () => {
-    expect(parseRedisUrl('redis://:pw@cache:6380/2')).toEqual({ host: 'cache', port: 6380, password: 'pw', db: 2 });
+    expect(parseRedisUrl('redis://:pw@cache:6380/2')).toEqual({
+      host: 'cache',
+      port: 6380,
+      password: 'pw',
+      db: 2,
+    });
     expect(parseRedisUrl('redis://127.0.0.1')).toEqual({ host: '127.0.0.1', port: 6379 });
   });
 });

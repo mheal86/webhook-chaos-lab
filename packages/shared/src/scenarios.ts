@@ -48,7 +48,10 @@ export const runConfigInputSchema = z
   .strict();
 export type RunConfigInput = z.infer<typeof runConfigInputSchema>;
 
-export function resolveRunConfig(input: RunConfigInput | undefined, type: ScenarioType | 'custom'): RunConfig {
+export function resolveRunConfig(
+  input: RunConfigInput | undefined,
+  type: ScenarioType | 'custom',
+): RunConfig {
   const parsed = runConfigInputSchema.parse(input ?? {});
   const config: RunConfig = { ...DEFAULT_RUN_CONFIG, ...parsed };
   if (config.capDelayMs < config.baseDelayMs) config.capDelayMs = config.baseDelayMs;
@@ -134,7 +137,8 @@ export const SCENARIO_CATALOG: ScenarioCatalogEntry[] = [
     type: 'out_of_order',
     title: 'Out-of-order snapshots',
     summary: 'Order snapshots are deliberately received as sequence 3, 1, 2 (one after another).',
-    expectation: 'Receive order is 3,1,2; projection stays at sequence 3; 2 stale snapshots ignored.',
+    expectation:
+      'Receive order is 3,1,2; projection stays at sequence 3; 2 stale snapshots ignored.',
     configurable: [],
   },
   {
@@ -149,7 +153,8 @@ export const SCENARIO_CATALOG: ScenarioCatalogEntry[] = [
     type: 'invalid_signature',
     title: 'Invalid signature',
     summary: 'The sender signs with a wrong key. The receiver must reject with 401.',
-    expectation: 'No marker and no effect at the receiver; delivery ends dead with a permanent error.',
+    expectation:
+      'No marker and no effect at the receiver; delivery ends dead with a permanent error.',
     configurable: ['eventCount'],
   },
 ];
@@ -184,7 +189,11 @@ const EMIT_AND_WAIT = (events: EventSpec[]): ScenarioStep[] => [
   { kind: 'await_terminal' },
 ];
 
-export function buildBlueprint(type: ScenarioType, seed: number, input?: RunConfigInput): Blueprint {
+export function buildBlueprint(
+  type: ScenarioType,
+  seed: number,
+  input?: RunConfigInput,
+): Blueprint {
   const config = resolveRunConfig(input, type);
   const n = config.eventCount;
 
@@ -201,16 +210,36 @@ export function buildBlueprint(type: ScenarioType, seed: number, input?: RunConf
         steps: EMIT_AND_WAIT(counterEvents(n)),
         assertions: chaos
           ? [
-              { key: 'all_terminal', label: 'Every delivery reached a terminal state', metric: 'deliveries.nonTerminal', expected: 0 },
-              { key: 'effects_match_success', label: 'Business effects equal succeeded deliveries', metric: 'businessEffects', expectedMetric: 'deliveries.succeeded' },
+              {
+                key: 'all_terminal',
+                label: 'Every delivery reached a terminal state',
+                metric: 'deliveries.nonTerminal',
+                expected: 0,
+              },
+              {
+                key: 'effects_match_success',
+                label: 'Business effects equal succeeded deliveries',
+                metric: 'businessEffects',
+                expectedMetric: 'deliveries.succeeded',
+              },
               { key: 'events', label: 'Events created', metric: 'events', expected: n },
             ]
           : [
-              { key: 'succeeded', label: 'Deliveries succeeded', metric: 'deliveries.succeeded', expected: n },
+              {
+                key: 'succeeded',
+                label: 'Deliveries succeeded',
+                metric: 'deliveries.succeeded',
+                expected: n,
+              },
               { key: 'dead', label: 'Deliveries dead', metric: 'deliveries.dead', expected: 0 },
               { key: 'attempts', label: 'HTTP attempts', metric: 'attempts.total', expected: n },
               { key: 'effects', label: 'Business effects', metric: 'businessEffects', expected: n },
-              { key: 'duplicates', label: 'Receiver duplicates', metric: 'receiver.byResult.duplicate', expected: 0 },
+              {
+                key: 'duplicates',
+                label: 'Receiver duplicates',
+                metric: 'receiver.byResult.duplicate',
+                expected: 0,
+              },
             ],
       };
     }
@@ -225,10 +254,30 @@ export function buildBlueprint(type: ScenarioType, seed: number, input?: RunConf
         },
         steps: EMIT_AND_WAIT(counterEvents(n)),
         assertions: [
-          { key: 'succeeded', label: 'Deliveries succeeded', metric: 'deliveries.succeeded', expected: n },
-          { key: 'attempts', label: 'HTTP attempts (3 per delivery)', metric: 'attempts.total', expected: 3 * n },
-          { key: 'max_per_delivery', label: 'Max attempts on one delivery', metric: 'attempts.maxPerDelivery', expected: 3 },
-          { key: 'receiver_500', label: 'Receiver injected 500s', metric: 'receiver.byResult.injected_failure', expected: 2 * n },
+          {
+            key: 'succeeded',
+            label: 'Deliveries succeeded',
+            metric: 'deliveries.succeeded',
+            expected: n,
+          },
+          {
+            key: 'attempts',
+            label: 'HTTP attempts (3 per delivery)',
+            metric: 'attempts.total',
+            expected: 3 * n,
+          },
+          {
+            key: 'max_per_delivery',
+            label: 'Max attempts on one delivery',
+            metric: 'attempts.maxPerDelivery',
+            expected: 3,
+          },
+          {
+            key: 'receiver_500',
+            label: 'Receiver injected 500s',
+            metric: 'receiver.byResult.injected_failure',
+            expected: 2 * n,
+          },
           { key: 'effects', label: 'Business effects', metric: 'businessEffects', expected: n },
         ],
       };
@@ -241,11 +290,26 @@ export function buildBlueprint(type: ScenarioType, seed: number, input?: RunConf
         faultPlan: { seed, rules: [] },
         steps: EMIT_AND_WAIT(counterEvents(1, d)),
         assertions: [
-          { key: 'deliveries', label: 'Deliveries for the single event', metric: 'deliveries.total', expected: d },
-          { key: 'succeeded', label: 'Deliveries succeeded', metric: 'deliveries.succeeded', expected: d },
+          {
+            key: 'deliveries',
+            label: 'Deliveries for the single event',
+            metric: 'deliveries.total',
+            expected: d,
+          },
+          {
+            key: 'succeeded',
+            label: 'Deliveries succeeded',
+            metric: 'deliveries.succeeded',
+            expected: d,
+          },
           { key: 'requests', label: 'Requests received', metric: 'receiver.requests', expected: d },
           { key: 'effects', label: 'Business effects', metric: 'businessEffects', expected: 1 },
-          { key: 'duplicates', label: 'Receiver duplicates', metric: 'receiver.byResult.duplicate', expected: d - 1 },
+          {
+            key: 'duplicates',
+            label: 'Receiver duplicates',
+            metric: 'receiver.byResult.duplicate',
+            expected: d - 1,
+          },
         ],
       };
     }
@@ -265,11 +329,36 @@ export function buildBlueprint(type: ScenarioType, seed: number, input?: RunConf
         },
         steps: EMIT_AND_WAIT(counterEvents(n)),
         assertions: [
-          { key: 'succeeded', label: 'Deliveries succeeded', metric: 'deliveries.succeeded', expected: n },
-          { key: 'attempts', label: 'HTTP attempts (2 per delivery)', metric: 'attempts.total', expected: 2 * n },
-          { key: 'timeouts', label: 'Attempts that timed out (outcome unknown at sender)', metric: 'attempts.byOutcome.timeout', expected: n },
-          { key: 'requests', label: 'Requests received', metric: 'receiver.requests', expected: 2 * n },
-          { key: 'duplicates', label: 'Receiver duplicates (retry after commit)', metric: 'receiver.byResult.duplicate', expected: n },
+          {
+            key: 'succeeded',
+            label: 'Deliveries succeeded',
+            metric: 'deliveries.succeeded',
+            expected: n,
+          },
+          {
+            key: 'attempts',
+            label: 'HTTP attempts (2 per delivery)',
+            metric: 'attempts.total',
+            expected: 2 * n,
+          },
+          {
+            key: 'timeouts',
+            label: 'Attempts that timed out (outcome unknown at sender)',
+            metric: 'attempts.byOutcome.timeout',
+            expected: n,
+          },
+          {
+            key: 'requests',
+            label: 'Requests received',
+            metric: 'receiver.requests',
+            expected: 2 * n,
+          },
+          {
+            key: 'duplicates',
+            label: 'Receiver duplicates (retry after commit)',
+            metric: 'receiver.byResult.duplicate',
+            expected: n,
+          },
           { key: 'effects', label: 'Business effects', metric: 'businessEffects', expected: n },
         ],
       };
@@ -285,12 +374,37 @@ export function buildBlueprint(type: ScenarioType, seed: number, input?: RunConf
           ...EMIT_AND_WAIT([orderSnapshot(2, 'paid')]),
         ],
         assertions: [
-          { key: 'receive_order', label: 'Receive order (event sequence)', metric: 'receiver.receiveOrder', expected: '3,1,2' },
-          { key: 'projection', label: 'Order projection sequence', metric: 'projections.orderSequence', expected: 3 },
-          { key: 'processed', label: 'Snapshots applied', metric: 'receiver.byResult.processed', expected: 1 },
-          { key: 'stale', label: 'Stale snapshots ignored', metric: 'receiver.byResult.stale', expected: 2 },
+          {
+            key: 'receive_order',
+            label: 'Receive order (event sequence)',
+            metric: 'receiver.receiveOrder',
+            expected: '3,1,2',
+          },
+          {
+            key: 'projection',
+            label: 'Order projection sequence',
+            metric: 'projections.orderSequence',
+            expected: 3,
+          },
+          {
+            key: 'processed',
+            label: 'Snapshots applied',
+            metric: 'receiver.byResult.processed',
+            expected: 1,
+          },
+          {
+            key: 'stale',
+            label: 'Stale snapshots ignored',
+            metric: 'receiver.byResult.stale',
+            expected: 2,
+          },
           { key: 'effects', label: 'Business effects', metric: 'businessEffects', expected: 1 },
-          { key: 'succeeded', label: 'Deliveries succeeded', metric: 'deliveries.succeeded', expected: 3 },
+          {
+            key: 'succeeded',
+            label: 'Deliveries succeeded',
+            metric: 'deliveries.succeeded',
+            expected: 3,
+          },
         ],
       };
     case 'exhaust_and_replay':
@@ -306,11 +420,36 @@ export function buildBlueprint(type: ScenarioType, seed: number, input?: RunConf
           { kind: 'await_terminal' },
         ],
         assertions: [
-          { key: 'dead', label: 'Original deliveries dead (history kept)', metric: 'deliveries.dead', expected: n },
-          { key: 'succeeded', label: 'Replay deliveries succeeded', metric: 'deliveries.succeeded', expected: n },
-          { key: 'lineage', label: 'Dead deliveries with a replay child', metric: 'lineage.deadWithReplay', expected: n },
-          { key: 'attempts', label: 'HTTP attempts (budget + 1 replay each)', metric: 'attempts.total', expected: n * (config.maxAttempts + 1) },
-          { key: 'receiver_500', label: 'Receiver injected 500s', metric: 'receiver.byResult.injected_failure', expected: n * config.maxAttempts },
+          {
+            key: 'dead',
+            label: 'Original deliveries dead (history kept)',
+            metric: 'deliveries.dead',
+            expected: n,
+          },
+          {
+            key: 'succeeded',
+            label: 'Replay deliveries succeeded',
+            metric: 'deliveries.succeeded',
+            expected: n,
+          },
+          {
+            key: 'lineage',
+            label: 'Dead deliveries with a replay child',
+            metric: 'lineage.deadWithReplay',
+            expected: n,
+          },
+          {
+            key: 'attempts',
+            label: 'HTTP attempts (budget + 1 replay each)',
+            metric: 'attempts.total',
+            expected: n * (config.maxAttempts + 1),
+          },
+          {
+            key: 'receiver_500',
+            label: 'Receiver injected 500s',
+            metric: 'receiver.byResult.injected_failure',
+            expected: n * config.maxAttempts,
+          },
           { key: 'effects', label: 'Business effects', metric: 'businessEffects', expected: n },
         ],
       };
@@ -323,10 +462,30 @@ export function buildBlueprint(type: ScenarioType, seed: number, input?: RunConf
         steps: EMIT_AND_WAIT(counterEvents(n)),
         assertions: [
           { key: 'dead', label: 'Deliveries dead', metric: 'deliveries.dead', expected: n },
-          { key: 'permanent', label: 'Dead with permanent_failure', metric: 'deliveries.deadByReason.permanent_failure', expected: n },
-          { key: 'attempts', label: 'HTTP attempts (no retry)', metric: 'attempts.total', expected: n },
-          { key: 'rejected', label: 'Receiver rejected signature', metric: 'receiver.byResult.rejected_signature', expected: n },
-          { key: 'processed', label: 'Receiver processed', metric: 'receiver.byResult.processed', expected: 0 },
+          {
+            key: 'permanent',
+            label: 'Dead with permanent_failure',
+            metric: 'deliveries.deadByReason.permanent_failure',
+            expected: n,
+          },
+          {
+            key: 'attempts',
+            label: 'HTTP attempts (no retry)',
+            metric: 'attempts.total',
+            expected: n,
+          },
+          {
+            key: 'rejected',
+            label: 'Receiver rejected signature',
+            metric: 'receiver.byResult.rejected_signature',
+            expected: n,
+          },
+          {
+            key: 'processed',
+            label: 'Receiver processed',
+            metric: 'receiver.byResult.processed',
+            expected: 0,
+          },
           { key: 'effects', label: 'Business effects', metric: 'businessEffects', expected: 0 },
         ],
       };

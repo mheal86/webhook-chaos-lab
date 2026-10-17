@@ -37,9 +37,11 @@ export function ReceiverInspector() {
         <Stat label="Business effects" value={s.summary.businessEffects} tone="blue" />
       </div>
       <p className="mt-2 text-xs text-muted">
-        Rejected signature {r.rejected_signature} · bad request {r.rejected_bad_request} · conflict {r.conflict} ·
-        injected failures {r.injected_failure} · errors {r.error}
-        {s.summary.receiveOrder ? ` · receive order (event sequence): ${s.summary.receiveOrder}` : ''}
+        Rejected signature {r.rejected_signature} · bad request {r.rejected_bad_request} · conflict{' '}
+        {r.conflict} · injected failures {r.injected_failure} · errors {r.error}
+        {s.summary.receiveOrder
+          ? ` · receive order (event sequence): ${s.summary.receiveOrder}`
+          : ''}
       </p>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
@@ -63,7 +65,9 @@ export function ReceiverInspector() {
           ) : (
             <p className="text-sm text-muted">No order snapshot applied.</p>
           )}
-          <h3 className="mb-2 mt-5 text-xs uppercase tracking-wider text-muted">Business effects ({s.effects.length})</h3>
+          <h3 className="mb-2 mt-5 text-xs uppercase tracking-wider text-muted">
+            Business effects ({s.effects.length})
+          </h3>
           {s.effects.length === 0 ? (
             <p className="text-sm text-muted">None.</p>
           ) : (
@@ -71,7 +75,12 @@ export function ReceiverInspector() {
               {s.effects.slice(0, 20).map((e) => (
                 <li key={e.id} className="flex justify-between gap-2 rounded bg-bg px-2 py-1">
                   <span className="font-mono">{e.kind}</span>
-                  <Link className="font-mono text-sky-300 hover:underline" to={`/events/${e.eventId}`}>{shortId(e.eventId)}</Link>
+                  <Link
+                    className="font-mono text-sky-300 hover:underline"
+                    to={`/events/${e.eventId}`}
+                  >
+                    {shortId(e.eventId)}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -80,7 +89,9 @@ export function ReceiverInspector() {
 
         <Panel title="HTTP requests received" className="lg:col-span-2">
           {s.requests.length === 0 ? (
-            <p className="text-sm text-muted">The receiver has not received any request for this run.</p>
+            <p className="text-sm text-muted">
+              The receiver has not received any request for this run.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm" data-testid="receiver-requests">
@@ -103,7 +114,9 @@ export function ReceiverInspector() {
                       <td className="py-1.5 pr-3 font-mono text-xs">{fmtTime(q.receivedAt)}</td>
                       <td className="py-1.5 pr-3 font-mono">{q.eventSequence ?? '—'}</td>
                       <td className="py-1.5 pr-3 font-mono">{q.attemptNo ?? '—'}</td>
-                      <td className="py-1.5 pr-3"><StatusBadge value={q.result} /></td>
+                      <td className="py-1.5 pr-3">
+                        <StatusBadge value={q.result} />
+                      </td>
                       <td className="py-1.5 pr-3 font-mono">{q.httpStatus ?? '…'}</td>
                       <td className="py-1.5 text-xs text-muted">
                         {q.signatureValid === false ? 'signature invalid · ' : ''}

@@ -32,23 +32,41 @@ export function Events() {
     limit: LIMIT,
     offset,
   });
-  const reset = <T,>(set: (v: T) => void) => (v: T) => {
-    set(v);
-    setOffset(0);
-  };
+  const reset =
+    <T,>(set: (v: T) => void) =>
+    (v: T) => {
+      set(v);
+      setOffset(0);
+    };
 
   return (
     <>
-      <PageTitle title="Events" subtitle="Immutable business events. One event can have several deliveries (duplicates, replays)." />
+      <PageTitle
+        title="Events"
+        subtitle="Immutable business events. One event can have several deliveries (duplicates, replays)."
+      />
       <Panel>
-        <form className="grid gap-3 md:grid-cols-5" onSubmit={(e) => e.preventDefault()} aria-label="Event filters">
+        <form
+          className="grid gap-3 md:grid-cols-5"
+          onSubmit={(e) => e.preventDefault()}
+          aria-label="Event filters"
+        >
           <label className="text-xs text-muted md:col-span-2">
             Event id or aggregate
-            <input className={`${inputCls} mt-1`} value={q} onChange={(e) => reset(setQ)(e.target.value)} placeholder="uuid or text" />
+            <input
+              className={`${inputCls} mt-1`}
+              value={q}
+              onChange={(e) => reset(setQ)(e.target.value)}
+              placeholder="uuid or text"
+            />
           </label>
           <label className="text-xs text-muted">
             Type
-            <select className={`${inputCls} mt-1`} value={type} onChange={(e) => reset(setType)(e.target.value)}>
+            <select
+              className={`${inputCls} mt-1`}
+              value={type}
+              onChange={(e) => reset(setType)(e.target.value)}
+            >
               <option value="">All types</option>
               {EVENT_TYPE_LIST.map((t) => (
                 <option key={t}>{t}</option>
@@ -57,15 +75,25 @@ export function Events() {
           </label>
           <label className="text-xs text-muted">
             Has delivery in state
-            <select className={`${inputCls} mt-1`} value={state} onChange={(e) => reset(setState)(e.target.value)}>
+            <select
+              className={`${inputCls} mt-1`}
+              value={state}
+              onChange={(e) => reset(setState)(e.target.value)}
+            >
               <option value="">Any</option>
               {DELIVERY_STATES.map((s) => (
-                <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                <option key={s} value={s}>
+                  {s.replace('_', ' ')}
+                </option>
               ))}
             </select>
           </label>
           <label className="flex items-end gap-2 pb-1.5 text-sm text-slate-300">
-            <input type="checkbox" checked={allRuns} onChange={(e) => reset(setAllRuns)(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={allRuns}
+              onChange={(e) => reset(setAllRuns)(e.target.checked)}
+            />
             All runs
           </label>
         </form>
@@ -97,7 +125,10 @@ export function Events() {
                   {events.data.items.map((e) => (
                     <tr key={e.id} className="hover:bg-panel-2">
                       <td className="px-3 py-2">
-                        <Link className="font-mono text-sky-300 hover:underline" to={`/events/${e.id}`}>
+                        <Link
+                          className="font-mono text-sky-300 hover:underline"
+                          to={`/events/${e.id}`}
+                        >
                           {shortId(e.id)}
                         </Link>
                       </td>

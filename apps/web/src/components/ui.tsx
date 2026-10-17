@@ -82,7 +82,15 @@ export function Panel({
   );
 }
 
-export function PageTitle({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
+export function PageTitle({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  actions?: ReactNode;
+}) {
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
@@ -113,13 +121,22 @@ export function EmptyState({ title, hint }: { title: string; hint?: ReactNode })
 }
 
 export function ErrorState({ error, retry }: { error: unknown; retry?: () => void }) {
-  const msg = error instanceof ApiError ? `${error.message} (HTTP ${error.status})` : String((error as Error)?.message ?? error);
+  const msg =
+    error instanceof ApiError
+      ? `${error.message} (HTTP ${error.status})`
+      : String((error as Error)?.message ?? error);
   return (
-    <div role="alert" className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+    <div
+      role="alert"
+      className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
+    >
       <p className="font-medium">Something went wrong</p>
       <p className="mt-1 break-words">{msg}</p>
       {retry && (
-        <button className="mt-2 rounded border border-rose-400/50 px-2 py-1 text-xs hover:bg-rose-500/20" onClick={retry}>
+        <button
+          className="mt-2 rounded border border-rose-400/50 px-2 py-1 text-xs hover:bg-rose-500/20"
+          onClick={retry}
+        >
           Retry
         </button>
       )}
@@ -127,11 +144,28 @@ export function ErrorState({ error, retry }: { error: unknown; retry?: () => voi
   );
 }
 
-export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone }) {
+export function Stat({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string;
+  value: ReactNode;
+  hint?: ReactNode;
+  tone?: Tone;
+}) {
   return (
-    <div className="rounded-lg border border-line bg-panel p-4" data-testid={`stat-${label.toLowerCase().replace(/\W+/g, '-')}`}>
+    <div
+      className="rounded-lg border border-line bg-panel p-4"
+      data-testid={`stat-${label.toLowerCase().replace(/\W+/g, '-')}`}
+    >
       <div className="text-xs uppercase tracking-wider text-muted">{label}</div>
-      <div className={`mt-1 text-2xl font-semibold tabular-nums ${tone ? TONES[tone].split(' ')[1] : 'text-white'}`}>{value}</div>
+      <div
+        className={`mt-1 text-2xl font-semibold tabular-nums ${tone ? TONES[tone].split(' ')[1] : 'text-white'}`}
+      >
+        {value}
+      </div>
       {hint && <div className="mt-1 text-xs text-muted">{hint}</div>}
     </div>
   );
@@ -158,15 +192,26 @@ export function Pager({
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(total, offset + limit);
   return (
-    <nav aria-label="Pagination" className="mt-3 flex items-center justify-between text-sm text-muted">
+    <nav
+      aria-label="Pagination"
+      className="mt-3 flex items-center justify-between text-sm text-muted"
+    >
       <span>
         {from}–{to} of {total}
       </span>
       <span className="flex gap-2">
-        <button className={btn} disabled={offset === 0} onClick={() => onChange(Math.max(0, offset - limit))}>
+        <button
+          className={btn}
+          disabled={offset === 0}
+          onClick={() => onChange(Math.max(0, offset - limit))}
+        >
           Previous
         </button>
-        <button className={btn} disabled={offset + limit >= total} onClick={() => onChange(offset + limit)}>
+        <button
+          className={btn}
+          disabled={offset + limit >= total}
+          onClick={() => onChange(offset + limit)}
+        >
           Next
         </button>
       </span>
@@ -175,7 +220,11 @@ export function Pager({
 }
 
 export const fmtTime = (iso: string | null | undefined): string =>
-  iso ? new Date(iso).toLocaleTimeString(undefined, { hour12: false }) + '.' + String(new Date(iso).getMilliseconds()).padStart(3, '0') : '—';
+  iso
+    ? new Date(iso).toLocaleTimeString(undefined, { hour12: false }) +
+      '.' +
+      String(new Date(iso).getMilliseconds()).padStart(3, '0')
+    : '—';
 
 export const fmtDateTime = (iso: string | null | undefined): string =>
   iso ? new Date(iso).toLocaleString(undefined, { hour12: false }) : '—';
@@ -183,7 +232,9 @@ export const fmtDateTime = (iso: string | null | undefined): string =>
 export const shortId = (id: string | null | undefined): string => (id ? id.slice(0, 8) : '—');
 
 export function Code({ children }: { children: ReactNode }) {
-  return <code className="rounded bg-bg px-1 py-0.5 font-mono text-xs text-sky-200">{children}</code>;
+  return (
+    <code className="rounded bg-bg px-1 py-0.5 font-mono text-xs text-sky-200">{children}</code>
+  );
 }
 
 export function Json({ value }: { value: unknown }) {

@@ -70,12 +70,17 @@ function attemptMatches(rule: FaultRule['attemptNo'], attemptNo: number): boolea
   return attemptNo >= rule.from && (rule.to === undefined || attemptNo <= rule.to);
 }
 
-export function decideFault(plan: FaultPlan | null | undefined, phase: number, ctx: FaultContext): FaultAction {
+export function decideFault(
+  plan: FaultPlan | null | undefined,
+  phase: number,
+  ctx: FaultContext,
+): FaultAction {
   if (!plan) return NO_FAULT;
   for (const rule of plan.rules) {
     if (rule.phase !== undefined && rule.phase !== phase) continue;
     if (rule.eventIndex !== undefined && rule.eventIndex !== ctx.eventIndex) continue;
-    if (rule.deliveryOrdinal !== undefined && rule.deliveryOrdinal !== ctx.deliveryOrdinal) continue;
+    if (rule.deliveryOrdinal !== undefined && rule.deliveryOrdinal !== ctx.deliveryOrdinal)
+      continue;
     if (!attemptMatches(rule.attemptNo, ctx.attemptNo)) continue;
     return rule.action;
   }

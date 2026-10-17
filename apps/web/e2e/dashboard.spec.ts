@@ -1,11 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const nav = (page: Page, name: string) => page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name, exact: true });
+const nav = (page: Page, name: string) =>
+  page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name, exact: true });
 
 async function runScenario(page: Page, type: string, fields: Record<string, string> = {}) {
   await page.goto('/runner');
   await page.getByTestId(`scenario-${type}`).check({ force: true });
-  for (const [label, value] of Object.entries(fields)) await page.getByLabel(label, { exact: true }).fill(value);
+  for (const [label, value] of Object.entries(fields))
+    await page.getByLabel(label, { exact: true }).fill(value);
   const button = page.getByTestId('run-button');
   await expect(button).toBeEnabled();
   await button.click();
@@ -41,7 +43,10 @@ test('inspect the attempt timeline of a retried delivery', async ({ page }) => {
 });
 
 test('timeouts are shown as unknown at the sender, not as a receiver failure', async ({ page }) => {
-  const result = await runScenario(page, 'timeout_after_commit', { 'HTTP timeout (ms)': '400', 'Backoff base (ms)': '100' });
+  const result = await runScenario(page, 'timeout_after_commit', {
+    'HTTP timeout (ms)': '400',
+    'Backoff base (ms)': '100',
+  });
   await expect(result).toHaveAttribute('data-status', 'passed');
   await nav(page, 'Events').click();
   await page.getByTestId('events-table').getByRole('link').first().click();
@@ -52,7 +57,9 @@ test('timeouts are shown as unknown at the sender, not as a receiver failure', a
   await expect(page.getByTestId('receiver-requests').getByText('duplicate')).toBeVisible();
 });
 
-test('dead letter -> replay keeps the original history and creates a new delivery', async ({ page }) => {
+test('dead letter -> replay keeps the original history and creates a new delivery', async ({
+  page,
+}) => {
   const result = await runScenario(page, 'invalid_signature');
   await expect(result).toHaveAttribute('data-status', 'passed');
 
@@ -79,7 +86,9 @@ test('exhaust retries then replay passes end to end', async ({ page }) => {
   await expect(page.getByTestId('assertion-lineage')).toContainText('passed');
 });
 
-test('out-of-order snapshots: receiver inspector shows projection at sequence 3', async ({ page }) => {
+test('out-of-order snapshots: receiver inspector shows projection at sequence 3', async ({
+  page,
+}) => {
   const result = await runScenario(page, 'out_of_order');
   await expect(result).toHaveAttribute('data-status', 'passed');
   await nav(page, 'Receiver Inspector').click();

@@ -23,7 +23,10 @@ export class CreateEventDto {
   @Length(1, 128)
   aggregateId!: string;
 
-  @ApiProperty({ example: 1, description: 'Logical sequence of the aggregate (used by order snapshots).' })
+  @ApiProperty({
+    example: 1,
+    description: 'Logical sequence of the aggregate (used by order snapshots).',
+  })
   @Type(() => Number)
   @IsInt()
   @Min(0)
@@ -83,7 +86,10 @@ export class ListEventsQueryDto extends PageQueryDto {
   @Length(1, 128)
   q?: string;
 
-  @ApiPropertyOptional({ enum: DELIVERY_STATES, description: 'Events having a delivery in this state.' })
+  @ApiPropertyOptional({
+    enum: DELIVERY_STATES,
+    description: 'Events having a delivery in this state.',
+  })
   @IsOptional()
   @IsIn(DELIVERY_STATES as unknown as string[])
   state?: string;
@@ -107,7 +113,9 @@ export class DeadLettersQueryDto extends PageQueryDto {
 }
 
 export class CreateRunDto {
-  @ApiPropertyOptional({ description: 'Seed for deterministic fault/jitter selection (default: random, recorded).' })
+  @ApiPropertyOptional({
+    description: 'Seed for deterministic fault/jitter selection (default: random, recorded).',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -115,7 +123,9 @@ export class CreateRunDto {
   @Max(2_147_483_647)
   seed?: number;
 
-  @ApiPropertyOptional({ description: 'Bounded overrides, see GET /api/scenarios for the allowed fields.' })
+  @ApiPropertyOptional({
+    description: 'Bounded overrides, see GET /api/scenarios for the allowed fields.',
+  })
   @IsOptional()
   @IsObject()
   config?: Record<string, unknown>;

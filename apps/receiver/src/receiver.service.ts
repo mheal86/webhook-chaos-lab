@@ -69,7 +69,13 @@ export class ReceiverService {
       result: ReceiverResult,
       status: number,
       detail: string | null,
-      extra: { runId?: string; eventId?: string; eventSequence?: number; payloadHash?: string; signatureValid?: boolean } = {},
+      extra: {
+        runId?: string;
+        eventId?: string;
+        eventSequence?: number;
+        payloadHash?: string;
+        signatureValid?: boolean;
+      } = {},
     ) => {
       await this.db.$executeRaw`
         UPDATE receiver_requests
@@ -160,7 +166,10 @@ export class ReceiverService {
         });
       } catch (err) {
         if (err instanceof InjectedFailure) {
-          await finish('injected_failure', 500, 'fault:fail_after_marker (rolled back)', { ...base, payloadHash });
+          await finish('injected_failure', 500, 'fault:fail_after_marker (rolled back)', {
+            ...base,
+            payloadHash,
+          });
           return { status: 500, body: { error: 'injected_failure' } };
         }
         throw err;
@@ -292,8 +301,12 @@ export class ReceiverService {
       : await this.db.$queryRaw<Array<{ result: string; n: number }>>`
           SELECT result::text AS result, count(*)::int AS n FROM receiver_requests GROUP BY 1`;
     const [effects] = runId
-      ? await this.db.$queryRaw<Array<{ n: number }>>`SELECT count(*)::int AS n FROM business_effects WHERE run_id = ${runId}`
-      : await this.db.$queryRaw<Array<{ n: number }>>`SELECT count(*)::int AS n FROM business_effects`;
+      ? await this.db.$queryRaw<
+          Array<{ n: number }>
+        >`SELECT count(*)::int AS n FROM business_effects WHERE run_id = ${runId}`
+      : await this.db.$queryRaw<
+          Array<{ n: number }>
+        >`SELECT count(*)::int AS n FROM business_effects`;
     return {
       runId: runId ?? null,
       requestsByResult: Object.fromEntries(rows.map((r) => [r.result, r.n])),

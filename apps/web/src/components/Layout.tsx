@@ -40,13 +40,18 @@ export function Layout() {
   const selected = runs.data?.find((r) => r.id === runId);
   return (
     <div className="min-h-screen">
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:rounded focus:bg-sky-600 focus:px-3 focus:py-2">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:rounded focus:bg-sky-600 focus:px-3 focus:py-2"
+      >
         Skip to content
       </a>
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
           <div className="flex items-center gap-3">
-            <span aria-hidden="true" className="text-xl">⚡</span>
+            <span aria-hidden="true" className="text-xl">
+              ⚡
+            </span>
             <span className="text-base font-semibold text-white">Webhook Chaos Lab</span>
           </div>
           <div className="flex items-center gap-3">
@@ -62,7 +67,9 @@ export function Layout() {
               end={n.end}
               className={({ isActive }) =>
                 `whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
-                  isActive ? 'border-sky-400 text-white' : 'border-transparent text-muted hover:text-slate-200'
+                  isActive
+                    ? 'border-sky-400 text-white'
+                    : 'border-transparent text-muted hover:text-slate-200'
                 }`
               }
             >

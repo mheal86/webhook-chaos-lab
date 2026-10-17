@@ -124,7 +124,13 @@ export class ReadModelsService {
 
   async endpoints(): Promise<EndpointDto[]> {
     const rows = await this.db.endpoint.findMany({ orderBy: { consumerId: 'asc' } });
-    return rows.map((e) => ({ id: e.id, consumerId: e.consumerId, name: e.name, url: e.url, enabled: e.enabled }));
+    return rows.map((e) => ({
+      id: e.id,
+      consumerId: e.consumerId,
+      name: e.name,
+      url: e.url,
+      enabled: e.enabled,
+    }));
   }
 
   async listEvents(q: {
@@ -140,7 +146,10 @@ export class ReadModelsService {
     const where: Prisma.Sql[] = [Prisma.sql`TRUE`];
     if (q.runId) where.push(Prisma.sql`e.run_id = ${q.runId}`);
     if (q.type) where.push(Prisma.sql`e.type = ${q.type}`);
-    if (q.q) where.push(Prisma.sql`(e.id = ${q.q} OR position(lower(${q.q}) in lower(e.aggregate_id)) > 0)`);
+    if (q.q)
+      where.push(
+        Prisma.sql`(e.id = ${q.q} OR position(lower(${q.q}) in lower(e.aggregate_id)) > 0)`,
+      );
     if (q.state) {
       where.push(
         Prisma.sql`EXISTS (SELECT 1 FROM deliveries dx WHERE dx.event_id = e.id AND dx.state = ${q.state}::"DeliveryState")`,
@@ -240,7 +249,9 @@ export class ReadModelsService {
   }
 
   async attempts(deliveryId: string): Promise<AttemptDto[]> {
-    const exists = await this.db.$queryRaw<Array<{ id: string }>>`SELECT id FROM deliveries WHERE id = ${deliveryId}`;
+    const exists = await this.db.$queryRaw<
+      Array<{ id: string }>
+    >`SELECT id FROM deliveries WHERE id = ${deliveryId}`;
     if (exists.length === 0) throw new DomainError('not_found', `delivery ${deliveryId} not found`);
     const rows = await this.db.$queryRaw<AttemptRow[]>`
       SELECT id, delivery_id, attempt_no, generation, started_at, finished_at, outcome::text AS outcome, http_status,
@@ -254,7 +265,14 @@ export class ReadModelsService {
     const [{ n }] = await this.db.$queryRaw<Array<{ n: number }>>`
       SELECT count(*)::int AS n FROM deliveries d WHERE d.state = 'dead' ${runFilter}`;
     const rows = await this.db.$queryRaw<
-      Array<DeliveryRow & { event_type: string; aggregate_id: string; replay_count: number; active_replays: number }>
+      Array<
+        DeliveryRow & {
+          event_type: string;
+          aggregate_id: string;
+          replay_count: number;
+          active_replays: number;
+        }
+      >
     >`
       SELECT ${DELIVERY_COLUMNS}, e.type AS event_type, e.aggregate_id,
              (SELECT count(*)::int FROM deliveries c WHERE c.replay_of_delivery_id = d.id) AS replay_count,
@@ -289,7 +307,10 @@ export class ReadModelsService {
   }
 
   async listRuns(limit = 50): Promise<RunListItem[]> {
-    const rows = await this.db.scenarioRun.findMany({ orderBy: { createdAt: 'desc' }, take: limit });
+    const rows = await this.db.scenarioRun.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
     return rows.map((r) => ({
       id: r.id,
       type: r.type as RunListItem['type'],
@@ -308,7 +329,11 @@ export class ReadModelsService {
     const stored = r.result as { assertions?: AssertionResult[] } | null;
     if (r.status === 'running' || !stored?.assertions) {
       const metrics = await computeRunMetrics(this.db, id);
-      assertions = evaluateAssertions(specs, metrics, r.status !== 'running' && r.status !== 'open');
+      assertions = evaluateAssertions(
+        specs,
+        metrics,
+        r.status !== 'running' && r.status !== 'open',
+      );
     } else {
       assertions = stored.assertions;
     }
@@ -331,7 +356,10 @@ export class ReadModelsService {
   }
 
   async metrics(runId: string): Promise<RunMetrics> {
-    const exists = await this.db.scenarioRun.findUnique({ where: { id: runId }, select: { id: true } });
+    const exists = await this.db.scenarioRun.findUnique({
+      where: { id: runId },
+      select: { id: true },
+    });
     if (!exists) throw new DomainError('not_found', `run ${runId} not found`);
     return computeRunMetrics(this.db, runId);
   }
@@ -359,7 +387,9 @@ export class ReadModelsService {
       SELECT id, seq, run_id, consumer_id, event_id, delivery_id, attempt_no, received_at, completed_at,
              result::text AS result, http_status, detail, signature_valid, event_sequence
       FROM receiver_requests WHERE run_id = ${runId} ORDER BY seq DESC LIMIT 200`;
-    const [counter] = await this.db.$queryRaw<Array<{ aggregate_id: string; value: number; updated_at: Date }>>`
+    const [counter] = await this.db.$queryRaw<
+      Array<{ aggregate_id: string; value: number; updated_at: Date }>
+    >`
       SELECT aggregate_id, value, updated_at FROM counter_projections WHERE run_id = ${runId}
       ORDER BY updated_at DESC LIMIT 1`;
     const [order] = await this.db.$queryRaw<
@@ -389,7 +419,11 @@ export class ReadModelsService {
         eventSequence: r.event_sequence,
       })),
       counter: counter
-        ? { aggregateId: counter.aggregate_id, value: counter.value, updatedAt: counter.updated_at.toISOString() }
+        ? {
+            aggregateId: counter.aggregate_id,
+            value: counter.value,
+            updatedAt: counter.updated_at.toISOString(),
+          }
         : null,
       order: order
         ? {

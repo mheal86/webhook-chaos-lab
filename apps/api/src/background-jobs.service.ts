@@ -1,4 +1,9 @@
-import { Inject, Injectable, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  type OnApplicationBootstrap,
+  type OnApplicationShutdown,
+} from '@nestjs/common';
 import {
   advanceRun,
   dispatchOutboxBatch,
@@ -59,7 +64,9 @@ export class BackgroundJobsService implements OnApplicationBootstrap, OnApplicat
       }),
       this.loop('run-supervisor', this.config.SUPERVISOR_POLL_MS, async () => {
         for (const runId of await listRunningRunIds(this.db)) {
-          const { status } = await advanceRun(this.db, runId, { runTimeoutMs: this.config.RUN_TIMEOUT_MS });
+          const { status } = await advanceRun(this.db, runId, {
+            runTimeoutMs: this.config.RUN_TIMEOUT_MS,
+          });
           if (status !== 'running') this.log.info('run finished', { runId, status });
         }
         return false;

@@ -32,35 +32,43 @@ export class CommandsService {
   async createEvent(dto: CreateEventDto, correlationId: string | null) {
     const runId = dto.runId ?? SEED.manualRunId;
     try {
-      return await this.db.$transaction(async (tx) => {
-        const runs = await tx.$queryRaw<Array<{ status: string; config: RunConfig }>>`
+      return await this.db
+        .$transaction(async (tx) => {
+          const runs = await tx.$queryRaw<Array<{ status: string; config: RunConfig }>>`
           SELECT status::text AS status, config FROM scenario_runs WHERE id = ${runId} FOR UPDATE`;
-        const run = runs[0];
-        if (!run) throw new DomainError('not_found', `run ${runId} not found`);
-        if (run.status !== 'open') {
-          throw new DomainError('conflict', `run ${runId} is ${run.status}; manual events need an open run`);
-        }
-        const endpoints = dto.endpointId
-          ? await tx.$queryRaw<Array<{ id: string }>>`
+          const run = runs[0];
+          if (!run) throw new DomainError('not_found', `run ${runId} not found`);
+          if (run.status !== 'open') {
+            throw new DomainError(
+              'conflict',
+              `run ${runId} is ${run.status}; manual events need an open run`,
+            );
+          }
+          const endpoints = dto.endpointId
+            ? await tx.$queryRaw<Array<{ id: string }>>`
               SELECT id FROM endpoints WHERE id = ${dto.endpointId} AND enabled = true`
-          : await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM endpoints WHERE enabled = true ORDER BY consumer_id`;
-        if (endpoints.length === 0) throw new DomainError('invalid', 'no enabled endpoint matches');
-        const [{ n }] = await tx.$queryRaw<Array<{ n: number }>>`
+            : await tx.$queryRaw<
+                Array<{ id: string }>
+              >`SELECT id FROM endpoints WHERE enabled = true ORDER BY consumer_id`;
+          if (endpoints.length === 0)
+            throw new DomainError('invalid', 'no enabled endpoint matches');
+          const [{ n }] = await tx.$queryRaw<Array<{ n: number }>>`
           SELECT count(*)::int AS n FROM events WHERE run_id = ${runId}`;
-        return insertEventWithDeliveries(tx, {
-          runId,
-          eventId: dto.eventId,
-          type: dto.type,
-          aggregateId: dto.aggregateId,
-          sequence: dto.sequence,
-          data: dto.data,
-          logicalIndex: n,
-          correlationId,
-          endpointIds: endpoints.map((e) => e.id),
-          copies: 1,
-          maxAttempts: policyFromConfig(run.config).maxAttempts,
-        });
-      }, TX_OPTIONS).then((r) => ({ ...r, runId }));
+          return insertEventWithDeliveries(tx, {
+            runId,
+            eventId: dto.eventId,
+            type: dto.type,
+            aggregateId: dto.aggregateId,
+            sequence: dto.sequence,
+            data: dto.data,
+            logicalIndex: n,
+            correlationId,
+            endpointIds: endpoints.map((e) => e.id),
+            copies: 1,
+            maxAttempts: policyFromConfig(run.config).maxAttempts,
+          });
+        }, TX_OPTIONS)
+        .then((r) => ({ ...r, runId }));
     } catch (err) {
       if (isUniqueViolation(err)) {
         throw new DomainError('conflict', 'an event with this id already exists');
@@ -82,7 +90,10 @@ export class CommandsService {
         throw new DomainError(
           'invalid',
           'invalid scenario config',
-          err.issues.map((i: { path: PropertyKey[]; message: string }) => ({ path: i.path.map(String).join('.'), message: i.message })),
+          err.issues.map((i: { path: PropertyKey[]; message: string }) => ({
+            path: i.path.map(String).join('.'),
+            message: i.message,
+          })),
         );
       }
       throw err;

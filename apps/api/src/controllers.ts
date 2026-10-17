@@ -33,7 +33,9 @@ export class EndpointsController {
   constructor(private readonly reads: ReadModelsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Configured receiver endpoints (read-only; URLs are server-side allowlisted)' })
+  @ApiOperation({
+    summary: 'Configured receiver endpoints (read-only; URLs are server-side allowlisted)',
+  })
   list() {
     return this.reads.endpoints();
   }
@@ -51,7 +53,10 @@ export class EventsController {
   @HttpCode(202)
   @ApiAcceptedResponse({ description: 'Committed to PostgreSQL; delivery happens asynchronously.' })
   async create(@Body() dto: CreateEventDto, @Req() req: Request) {
-    const accepted = await this.commands.createEvent(dto, (req as Request & { correlationId?: string }).correlationId ?? null);
+    const accepted = await this.commands.createEvent(
+      dto,
+      (req as Request & { correlationId?: string }).correlationId ?? null,
+    );
     return {
       eventId: accepted.eventId,
       runId: accepted.runId,
@@ -92,7 +97,8 @@ export class DeliveriesController {
   @Post('deliveries/:id/replay')
   @HttpCode(202)
   @ApiOperation({
-    summary: 'Replay a terminal delivery: same eventId and raw payload, new deliveryId, fresh attempt budget.',
+    summary:
+      'Replay a terminal delivery: same eventId and raw payload, new deliveryId, fresh attempt budget.',
   })
   replay(@Param('id', ParseUUIDPipe) id: string) {
     return this.commands.replay(id);

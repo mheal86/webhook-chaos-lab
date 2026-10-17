@@ -11,7 +11,13 @@ import {
   type DispatchJob,
 } from '@lab/db';
 import { SEED, type AttemptDecision } from '@lab/shared';
-import { count, createCustomRun, createTestDatabase, deliveryRows, type TestDatabase } from './harness';
+import {
+  count,
+  createCustomRun,
+  createTestDatabase,
+  deliveryRows,
+  type TestDatabase,
+} from './harness';
 
 const OK: AttemptDecision = { kind: 'succeeded', outcome: 'success', errorCode: null };
 const retry = (delayMs: number): AttemptDecision => ({
@@ -22,7 +28,9 @@ const retry = (delayMs: number): AttemptDecision => ({
   nextAttemptAtMs: Date.now() + delayMs,
   retryAfterApplied: false,
 });
-const dead = (reason: 'permanent_failure' | 'attempts_exhausted' = 'permanent_failure'): AttemptDecision => ({
+const dead = (
+  reason: 'permanent_failure' | 'attempts_exhausted' = 'permanent_failure',
+): AttemptDecision => ({
   kind: 'dead',
   outcome: 'http_permanent',
   errorCode: 'http_400',
@@ -75,9 +83,16 @@ describe('delivery engine on real PostgreSQL', () => {
       );
       expect(ev!.raw_payload).toBe(a.rawPayload);
       expect(ev!.payload_hash).toBe(a.payloadHash);
-      expect(await count(t, 'outbox', "delivery_id = ANY($1::text[]) AND status = 'pending'", [a.deliveryIds])).toBe(3);
+      expect(
+        await count(t, 'outbox', "delivery_id = ANY($1::text[]) AND status = 'pending'", [
+          a.deliveryIds,
+        ]),
+      ).toBe(3);
       // several deliveries of the same event + endpoint are allowed (no unique(event, endpoint))
-      const ordinals = await t.query<{ ordinal: number }>('SELECT ordinal FROM deliveries WHERE event_id = $1 ORDER BY ordinal', [a.eventId]);
+      const ordinals = await t.query<{ ordinal: number }>(
+        'SELECT ordinal FROM deliveries WHERE event_id = $1 ORDER BY ordinal',
+        [a.eventId],
+      );
       expect(ordinals.map((o) => o.ordinal)).toEqual([1, 2, 3]);
     });
 
@@ -131,7 +146,9 @@ describe('delivery engine on real PostgreSQL', () => {
       const id = deliveryIds[0]!;
       const results = await Promise.all(Array.from({ length: 10 }, () => claim(id)));
       expect(results.filter((r) => r.claimed)).toHaveLength(1);
-      expect(results.filter((r) => !r.claimed && r.reason === 'held_by_other').length).toBeGreaterThanOrEqual(1);
+      expect(
+        results.filter((r) => !r.claimed && r.reason === 'held_by_other').length,
+      ).toBeGreaterThanOrEqual(1);
       expect(await count(t, 'delivery_attempts', 'delivery_id = $1', [id])).toBe(1);
       const d = await row(id);
       expect(d.state).toBe('in_flight');
@@ -152,7 +169,17 @@ describe('delivery engine on real PostgreSQL', () => {
       const id = deliveryIds[0]!;
       const c = await claim(id);
       if (!c.claimed) throw new Error('expected claim');
-      expect((await completeAttempt(t.db, { deliveryId: id, attemptNo: 1, claimToken: c.claim.claimToken, decision: OK, observation: OBS })).applied).toBe(true);
+      expect(
+        (
+          await completeAttempt(t.db, {
+            deliveryId: id,
+            attemptNo: 1,
+            claimToken: c.claim.claimToken,
+            decision: OK,
+            observation: OBS,
+          })
+        ).applied,
+      ).toBe(true);
       const again = await claim(id);
       expect(again).toEqual({ claimed: false, reason: 'terminal' });
       expect(await count(t, 'delivery_attempts', 'delivery_id = $1', [id])).toBe(1);
@@ -164,12 +191,31 @@ describe('delivery engine on real PostgreSQL', () => {
       const id = deliveryIds[0]!;
       const c = await claim(id);
       if (!c.claimed) throw new Error('expected claim');
-      await completeAttempt(t.db, { deliveryId: id, attemptNo: 1, claimToken: c.claim.claimToken, decision: OK, observation: OBS });
+      await completeAttempt(t.db, {
+        deliveryId: id,
+        attemptNo: 1,
+        claimToken: c.claim.claimToken,
+        decision: OK,
+        observation: OBS,
+      });
       const d = await row(id);
-      expect(d).toMatchObject({ state: 'succeeded', claim_token: null, lease_until: null, next_attempt_at: null });
+      expect(d).toMatchObject({
+        state: 'succeeded',
+        claim_token: null,
+        lease_until: null,
+        next_attempt_at: null,
+      });
       expect(d.finished_at).toBeTruthy();
-      const [a] = await t.query<Record<string, any>>('SELECT * FROM delivery_attempts WHERE delivery_id = $1', [id]);
-      expect(a).toMatchObject({ outcome: 'success', http_status: 200, duration_ms: 5, response_preview: 'ok' });
+      const [a] = await t.query<Record<string, any>>(
+        'SELECT * FROM delivery_attempts WHERE delivery_id = $1',
+        [id],
+      );
+      expect(a).toMatchObject({
+        outcome: 'success',
+        http_status: 200,
+        duration_ms: 5,
+        response_preview: 'ok',
+      });
       expect(a!.finished_at).toBeTruthy();
     });
 
@@ -178,10 +224,24 @@ describe('delivery engine on real PostgreSQL', () => {
       const id = deliveryIds[0]!;
       const c = await claim(id);
       if (!c.claimed) throw new Error('expected claim');
-      await completeAttempt(t.db, { deliveryId: id, attemptNo: 1, claimToken: c.claim.claimToken, decision: retry(60_000), observation: { ...OBS, httpStatus: 500, errorCode: 'http_500' } });
+      await completeAttempt(t.db, {
+        deliveryId: id,
+        attemptNo: 1,
+        claimToken: c.claim.claimToken,
+        decision: retry(60_000),
+        observation: { ...OBS, httpStatus: 500, errorCode: 'http_500' },
+      });
       const d = await row(id);
-      expect(d).toMatchObject({ state: 'retry_wait', generation: 2, attempt_count: 1, last_error_code: 'http_500' });
-      const [ob] = await t.query<Record<string, any>>('SELECT * FROM outbox WHERE delivery_id = $1 AND generation = 2', [id]);
+      expect(d).toMatchObject({
+        state: 'retry_wait',
+        generation: 2,
+        attempt_count: 1,
+        last_error_code: 'http_500',
+      });
+      const [ob] = await t.query<Record<string, any>>(
+        'SELECT * FROM outbox WHERE delivery_id = $1 AND generation = 2',
+        [id],
+      );
       expect(ob).toMatchObject({ status: 'pending' });
       expect(new Date(ob!.available_at).getTime()).toBeGreaterThan(Date.now() + 30_000);
       expect(await claim(id, 1)).toEqual({ claimed: false, reason: 'stale_generation' });
@@ -193,7 +253,13 @@ describe('delivery engine on real PostgreSQL', () => {
       const id = deliveryIds[0]!;
       const c = await claim(id);
       if (!c.claimed) throw new Error('expected claim');
-      await completeAttempt(t.db, { deliveryId: id, attemptNo: 1, claimToken: c.claim.claimToken, decision: dead('attempts_exhausted'), observation: { ...OBS, httpStatus: 400 } });
+      await completeAttempt(t.db, {
+        deliveryId: id,
+        attemptNo: 1,
+        claimToken: c.claim.claimToken,
+        decision: dead('attempts_exhausted'),
+        observation: { ...OBS, httpStatus: 400 },
+      });
       expect(await row(id)).toMatchObject({ state: 'dead', terminal_reason: 'attempts_exhausted' });
       expect(await count(t, 'delivery_attempts', 'delivery_id = $1', [id])).toBe(1);
     });
@@ -201,7 +267,7 @@ describe('delivery engine on real PostgreSQL', () => {
     it('never claims beyond max_attempts', async () => {
       const { deliveryIds } = await makeDeliveries(1, 1);
       const id = deliveryIds[0]!;
-      await t.query("UPDATE deliveries SET attempt_count = 1 WHERE id = $1", [id]);
+      await t.query('UPDATE deliveries SET attempt_count = 1 WHERE id = $1', [id]);
       expect(await claim(id)).toEqual({ claimed: false, reason: 'budget_exhausted' });
     });
   });
@@ -213,21 +279,41 @@ describe('delivery engine on real PostgreSQL', () => {
       const c = await claim(id);
       if (!c.claimed) throw new Error('expected claim');
       // the worker "dies": its lease runs out
-      await t.query("UPDATE deliveries SET lease_until = now() - interval '1 second' WHERE id = $1", [id]);
+      await t.query(
+        "UPDATE deliveries SET lease_until = now() - interval '1 second' WHERE id = $1",
+        [id],
+      );
 
       const rec = await recoverExpiredLeases(t.db);
       expect(rec.recovered).toBeGreaterThanOrEqual(1);
       const d = await row(id);
-      expect(d).toMatchObject({ state: 'retry_wait', generation: 2, attempt_count: 1, claim_token: null });
-      const [a] = await t.query<Record<string, any>>('SELECT * FROM delivery_attempts WHERE delivery_id = $1', [id]);
+      expect(d).toMatchObject({
+        state: 'retry_wait',
+        generation: 2,
+        attempt_count: 1,
+        claim_token: null,
+      });
+      const [a] = await t.query<Record<string, any>>(
+        'SELECT * FROM delivery_attempts WHERE delivery_id = $1',
+        [id],
+      );
       expect(a).toMatchObject({ outcome: 'worker_lost', error_code: 'worker_lost' });
       expect(await count(t, 'outbox', 'delivery_id = $1 AND generation = 2', [id])).toBe(1);
 
       // the old worker comes back from the dead and reports success: it must not win
-      const late = await completeAttempt(t.db, { deliveryId: id, attemptNo: 1, claimToken: c.claim.claimToken, decision: OK, observation: OBS });
+      const late = await completeAttempt(t.db, {
+        deliveryId: id,
+        attemptNo: 1,
+        claimToken: c.claim.claimToken,
+        decision: OK,
+        observation: OBS,
+      });
       expect(late.applied).toBe(false);
       expect(await row(id)).toMatchObject({ state: 'retry_wait', generation: 2 });
-      const [after] = await t.query<Record<string, any>>('SELECT outcome::text AS outcome, late_result FROM delivery_attempts WHERE delivery_id = $1', [id]);
+      const [after] = await t.query<Record<string, any>>(
+        'SELECT outcome::text AS outcome, late_result FROM delivery_attempts WHERE delivery_id = $1',
+        [id],
+      );
       expect(after!.outcome).toBe('worker_lost');
       expect(after!.late_result).toMatchObject({ httpStatus: 200 });
     });
@@ -237,7 +323,10 @@ describe('delivery engine on real PostgreSQL', () => {
       const id = deliveryIds[0]!;
       const c = await claim(id);
       if (!c.claimed) throw new Error('expected claim');
-      await t.query("UPDATE deliveries SET lease_until = now() - interval '1 second' WHERE id = $1", [id]);
+      await t.query(
+        "UPDATE deliveries SET lease_until = now() - interval '1 second' WHERE id = $1",
+        [id],
+      );
       const rec = await recoverExpiredLeases(t.db);
       expect(rec.dead).toBeGreaterThanOrEqual(1);
       expect(await row(id)).toMatchObject({ state: 'dead', terminal_reason: 'attempts_exhausted' });
@@ -255,7 +344,10 @@ describe('delivery engine on real PostgreSQL', () => {
       const { deliveryIds } = await makeDeliveries();
       const id = deliveryIds[0]!;
       await claim(id);
-      await t.query("UPDATE deliveries SET lease_until = now() - interval '1 second' WHERE id = $1", [id]);
+      await t.query(
+        "UPDATE deliveries SET lease_until = now() - interval '1 second' WHERE id = $1",
+        [id],
+      );
       await Promise.all(Array.from({ length: 5 }, () => recoverExpiredLeases(t.db)));
       expect((await row(id)).generation).toBe(2);
       expect(await count(t, 'outbox', 'delivery_id = $1 AND generation = 2', [id])).toBe(1);
@@ -272,16 +364,39 @@ describe('delivery engine on real PostgreSQL', () => {
       await drain();
       const { deliveryIds } = await makeDeliveries(3);
       await expect(
-        dispatchOutboxBatch(t.db, async () => { throw new Error('redis unavailable'); }, 50),
+        dispatchOutboxBatch(
+          t.db,
+          async () => {
+            throw new Error('redis unavailable');
+          },
+          50,
+        ),
       ).rejects.toThrow('redis unavailable');
-      expect(await count(t, 'outbox', "delivery_id = ANY($1::text[]) AND status = 'pending'", [deliveryIds])).toBe(3);
+      expect(
+        await count(t, 'outbox', "delivery_id = ANY($1::text[]) AND status = 'pending'", [
+          deliveryIds,
+        ]),
+      ).toBe(3);
 
       const seen: DispatchJob[] = [];
-      const n = await dispatchOutboxBatch(t.db, async (jobs) => { seen.push(...jobs); }, 50);
+      const n = await dispatchOutboxBatch(
+        t.db,
+        async (jobs) => {
+          seen.push(...jobs);
+        },
+        50,
+      );
       expect(n).toBe(3);
       expect(seen.map((j) => j.deliveryId).sort()).toEqual([...deliveryIds].sort());
       expect(seen.every((j) => j.jobId === `${j.deliveryId}_g1` && j.generation === 1)).toBe(true);
-      expect(await count(t, 'outbox', "delivery_id = ANY($1::text[]) AND status = 'published' AND published_at IS NOT NULL", [deliveryIds])).toBe(3);
+      expect(
+        await count(
+          t,
+          'outbox',
+          "delivery_id = ANY($1::text[]) AND status = 'published' AND published_at IS NOT NULL",
+          [deliveryIds],
+        ),
+      ).toBe(3);
     });
 
     it('a crash after enqueue but before the commit re-publishes under the same job id', async () => {
@@ -290,10 +405,23 @@ describe('delivery engine on real PostgreSQL', () => {
       const first: DispatchJob[] = [];
       // publish succeeded, then the process "crashes" before the row is marked published
       await expect(
-        dispatchOutboxBatch(t.db, async (jobs) => { first.push(...jobs); throw new Error('crash after enqueue'); }, 10),
+        dispatchOutboxBatch(
+          t.db,
+          async (jobs) => {
+            first.push(...jobs);
+            throw new Error('crash after enqueue');
+          },
+          10,
+        ),
       ).rejects.toThrow();
       const second: DispatchJob[] = [];
-      await dispatchOutboxBatch(t.db, async (jobs) => { second.push(...jobs); }, 10);
+      await dispatchOutboxBatch(
+        t.db,
+        async (jobs) => {
+          second.push(...jobs);
+        },
+        10,
+      );
       expect(second.map((j) => j.jobId)).toEqual(first.map((j) => j.jobId));
       expect(second[0]!.deliveryId).toBe(deliveryIds[0]);
     });
@@ -304,7 +432,14 @@ describe('delivery engine on real PostgreSQL', () => {
       const published: string[][] = [[], [], [], []];
       await Promise.all(
         published.map((bucket) =>
-          dispatchOutboxBatch(t.db, async (jobs) => { await new Promise((r) => setTimeout(r, 30)); bucket.push(...jobs.map((j) => j.deliveryId)); }, 5),
+          dispatchOutboxBatch(
+            t.db,
+            async (jobs) => {
+              await new Promise((r) => setTimeout(r, 30));
+              bucket.push(...jobs.map((j) => j.deliveryId));
+            },
+            5,
+          ),
         ),
       );
       const all = published.flat();
@@ -316,9 +451,18 @@ describe('delivery engine on real PostgreSQL', () => {
     it('does not publish rows that are not due yet', async () => {
       await drain();
       const { deliveryIds } = await makeDeliveries();
-      await t.query("UPDATE outbox SET available_at = now() + interval '1 hour' WHERE delivery_id = $1", [deliveryIds[0]]);
+      await t.query(
+        "UPDATE outbox SET available_at = now() + interval '1 hour' WHERE delivery_id = $1",
+        [deliveryIds[0]],
+      );
       const seen: DispatchJob[] = [];
-      await dispatchOutboxBatch(t.db, async (jobs) => { seen.push(...jobs); }, 50);
+      await dispatchOutboxBatch(
+        t.db,
+        async (jobs) => {
+          seen.push(...jobs);
+        },
+        50,
+      );
       expect(seen.find((j) => j.deliveryId === deliveryIds[0])).toBeUndefined();
     });
   });
@@ -330,11 +474,18 @@ describe('delivery engine on real PostgreSQL', () => {
       await dispatchOutboxBatch(t.db, async () => undefined, 1000);
       // too fresh: nothing happens
       expect((await reissueLostDispatches(t.db, 60_000)).redispatched).toBe(0);
-      await t.query("UPDATE outbox SET published_at = now() - interval '5 minutes' WHERE delivery_id = $1", [id]);
+      await t.query(
+        "UPDATE outbox SET published_at = now() - interval '5 minutes' WHERE delivery_id = $1",
+        [id],
+      );
       const rep = await reissueLostDispatches(t.db, 1000);
       expect(rep.redispatched).toBeGreaterThanOrEqual(1);
       expect((await row(id)).generation).toBe(2);
-      expect(await count(t, 'outbox', "delivery_id = $1 AND generation = 2 AND status = 'pending'", [id])).toBe(1);
+      expect(
+        await count(t, 'outbox', "delivery_id = $1 AND generation = 2 AND status = 'pending'", [
+          id,
+        ]),
+      ).toBe(1);
       expect(await claim(id, 1)).toEqual({ claimed: false, reason: 'stale_generation' });
       const ok = await claim(id, 2);
       expect(ok.claimed).toBe(true);
@@ -344,7 +495,10 @@ describe('delivery engine on real PostgreSQL', () => {
       const { deliveryIds } = await makeDeliveries();
       const id = deliveryIds[0]!;
       await t.query('DELETE FROM outbox WHERE delivery_id = $1', [id]);
-      await t.query("UPDATE deliveries SET updated_at = now() - interval '5 minutes' WHERE id = $1", [id]);
+      await t.query(
+        "UPDATE deliveries SET updated_at = now() - interval '5 minutes' WHERE id = $1",
+        [id],
+      );
       const rep = await reissueLostDispatches(t.db, 1000);
       expect(rep.missingOutbox).toBeGreaterThanOrEqual(1);
       expect(await count(t, 'outbox', "delivery_id = $1 AND status = 'pending'", [id])).toBe(1);
@@ -357,7 +511,13 @@ describe('delivery engine on real PostgreSQL', () => {
       const id = deliveryIds[0]!;
       const c = await claim(id);
       if (!c.claimed) throw new Error('expected claim');
-      await completeAttempt(t.db, { deliveryId: id, attemptNo: 1, claimToken: c.claim.claimToken, decision: kind === 'dead' ? dead() : OK, observation: OBS });
+      await completeAttempt(t.db, {
+        deliveryId: id,
+        attemptNo: 1,
+        claimToken: c.claim.claimToken,
+        decision: kind === 'dead' ? dead() : OK,
+        observation: OBS,
+      });
       return { id, eventId, rawPayload };
     }
 
@@ -370,24 +530,43 @@ describe('delivery engine on real PostgreSQL', () => {
       expect(orig).toMatchObject({ state: 'dead', attempt_count: 1 });
       expect(await count(t, 'delivery_attempts', 'delivery_id = $1', [id])).toBe(1);
       const created = await row(r.deliveryId);
-      expect(created).toMatchObject({ state: 'queued', attempt_count: 0, event_id: eventId, replay_of_delivery_id: id, ordinal: 2 });
-      expect(await count(t, 'outbox', "delivery_id = $1 AND status = 'pending'", [r.deliveryId])).toBe(1);
-      const [ev] = await t.query<{ raw_payload: string }>('SELECT raw_payload FROM events WHERE id = $1', [eventId]);
+      expect(created).toMatchObject({
+        state: 'queued',
+        attempt_count: 0,
+        event_id: eventId,
+        replay_of_delivery_id: id,
+        ordinal: 2,
+      });
+      expect(
+        await count(t, 'outbox', "delivery_id = $1 AND status = 'pending'", [r.deliveryId]),
+      ).toBe(1);
+      const [ev] = await t.query<{ raw_payload: string }>(
+        'SELECT raw_payload FROM events WHERE id = $1',
+        [eventId],
+      );
       expect(ev!.raw_payload).toBe(rawPayload);
       expect(await count(t, 'events', 'id = $1', [eventId])).toBe(1);
     });
 
     it('rejects replay of a non-terminal delivery and of unknown ids', async () => {
       const { deliveryIds } = await makeDeliveries();
-      await expect(replayDelivery(t.db, deliveryIds[0]!)).rejects.toMatchObject({ code: 'not_terminal' });
+      await expect(replayDelivery(t.db, deliveryIds[0]!)).rejects.toMatchObject({
+        code: 'not_terminal',
+      });
       await expect(replayDelivery(t.db, randomUUID())).rejects.toMatchObject({ code: 'not_found' });
     });
 
     it('concurrent replay requests create exactly one replay', async () => {
       const { id } = await terminalDelivery('dead');
-      const results = await Promise.allSettled(Array.from({ length: 6 }, () => replayDelivery(t.db, id)));
+      const results = await Promise.allSettled(
+        Array.from({ length: 6 }, () => replayDelivery(t.db, id)),
+      );
       expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
-      expect(results.filter((r) => r.status === 'rejected' && (r.reason as DomainError).code === 'replay_in_progress')).toHaveLength(5);
+      expect(
+        results.filter(
+          (r) => r.status === 'rejected' && (r.reason as DomainError).code === 'replay_in_progress',
+        ),
+      ).toHaveLength(5);
       expect(await count(t, 'deliveries', 'replay_of_delivery_id = $1', [id])).toBe(1);
     });
   });

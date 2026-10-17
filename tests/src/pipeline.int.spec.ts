@@ -60,7 +60,9 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
   }
 
   const summarize = (run: RunDto) =>
-    run.assertions.map((a) => `${a.status} ${a.key}: actual=${a.actual} expected=${a.expectedValue}`).join('\n');
+    run.assertions
+      .map((a) => `${a.status} ${a.key}: actual=${a.actual} expected=${a.expectedValue}`)
+      .join('\n');
 
   it.each([
     ['healthy', {}],
@@ -87,7 +89,9 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
     expect(a.id).not.toBe(b.id);
     expect(a.faultPlan).toEqual(b.faultPlan);
     expect(a.config).toEqual(b.config);
-    expect(a.assertions.map((x) => [x.key, x.actual])).toEqual(b.assertions.map((x) => [x.key, x.actual]));
+    expect(a.assertions.map((x) => [x.key, x.actual])).toEqual(
+      b.assertions.map((x) => [x.key, x.actual]),
+    );
   });
 
   it('duplicate storm: 20 deliveries of one eventId, 20 requests, 1 effect, 19 duplicates', async () => {
@@ -101,13 +105,19 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
   });
 
   it('timeout after commit: attempt 1 is a timeout (unknown at sender), retry succeeds, one effect', async () => {
-    const run = await runScenario('timeout_after_commit', { config: { ...FAST, httpTimeoutMs: 400 } });
+    const run = await runScenario('timeout_after_commit', {
+      config: { ...FAST, httpTimeoutMs: 400 },
+    });
     expect(run.status).toBe('passed');
     const events = (await http.get(`/api/events?runId=${run.id}`)).body;
     const detail = (await http.get(`/api/events/${events.items[0].id}`)).body;
     const attempts = detail.deliveries[0].attempts;
     expect(attempts.map((a: any) => a.outcome)).toEqual(['timeout', 'success']);
-    expect(attempts[0]).toMatchObject({ unknownAtSender: true, httpStatus: null, errorCode: 'timeout' });
+    expect(attempts[0]).toMatchObject({
+      unknownAtSender: true,
+      httpStatus: null,
+      errorCode: 'timeout',
+    });
     expect(attempts[0].scheduledRetryAt).toBeTruthy();
     expect(attempts[1]).toMatchObject({ unknownAtSender: false, httpStatus: 200 });
   });
@@ -118,7 +128,9 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
     expect(state.summary.receiveOrder).toBe('3,1,2');
     expect(state.order.sequence).toBe(3);
     expect(state.effects).toHaveLength(1);
-    const results = [...state.requests].sort((a: any, b: any) => a.seq - b.seq).map((r: any) => r.result);
+    const results = [...state.requests]
+      .sort((a: any, b: any) => a.seq - b.seq)
+      .map((r: any) => r.result);
     expect(results).toEqual(['processed', 'stale', 'stale']);
   });
 
@@ -129,9 +141,17 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
     const detail = (await http.get(`/api/events/${event.id}`)).body;
     expect(detail.deliveries).toHaveLength(2);
     const [original, replay] = detail.deliveries;
-    expect(original).toMatchObject({ state: 'dead', attemptCount: 3, terminalReason: 'attempts_exhausted' });
+    expect(original).toMatchObject({
+      state: 'dead',
+      attemptCount: 3,
+      terminalReason: 'attempts_exhausted',
+    });
     expect(original.attempts.map((a: any) => a.httpStatus)).toEqual([500, 500, 500]);
-    expect(replay).toMatchObject({ state: 'succeeded', replayOfDeliveryId: original.id, attemptCount: 1 });
+    expect(replay).toMatchObject({
+      state: 'succeeded',
+      replayOfDeliveryId: original.id,
+      attemptCount: 1,
+    });
     expect(replay.eventId).toBe(original.eventId);
   });
 
@@ -143,7 +163,11 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
     expect(metrics.businessEffects).toBe(0);
     const dead = (await http.get(`/api/dead-letters?runId=${run.id}`)).body;
     expect(dead.total).toBe(1);
-    expect(dead.items[0].attempts[0]).toMatchObject({ httpStatus: 401, outcome: 'http_permanent', unknownAtSender: false });
+    expect(dead.items[0].attempts[0]).toMatchObject({
+      httpStatus: 401,
+      outcome: 'http_permanent',
+      unknownAtSender: false,
+    });
   });
 
   describe('one active run at a time', () => {
@@ -155,10 +179,16 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
       const second = await http.post('/api/scenarios/healthy/runs').send({});
       expect(second.status).toBe(409);
       expect(second.body.error).toBe('run_already_active');
-      await waitFor(async () => (await http.get(`/api/runs/${first.body.runId}`)).body.status !== 'running', { timeoutMs: 30_000, intervalMs: 100 });
+      await waitFor(
+        async () => (await http.get(`/api/runs/${first.body.runId}`)).body.status !== 'running',
+        { timeoutMs: 30_000, intervalMs: 100 },
+      );
       const third = await http.post('/api/scenarios/healthy/runs').send({});
       expect(third.status).toBe(202);
-      await waitFor(async () => (await http.get(`/api/runs/${third.body.runId}`)).body.status !== 'running', { timeoutMs: 30_000, intervalMs: 100 });
+      await waitFor(
+        async () => (await http.get(`/api/runs/${third.body.runId}`)).body.status !== 'running',
+        { timeoutMs: 30_000, intervalMs: 100 },
+      );
     });
   });
 
@@ -175,7 +205,13 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
 
     it('rejects unknown scenarios with 404 and unknown body fields with 400', async () => {
       expect((await http.post('/api/scenarios/nope/runs').send({})).status).toBe(404);
-      expect((await http.post('/api/scenarios/healthy/runs').send({ endpointUrl: 'http://evil.example' })).status).toBe(400);
+      expect(
+        (
+          await http
+            .post('/api/scenarios/healthy/runs')
+            .send({ endpointUrl: 'http://evil.example' })
+        ).status,
+      ).toBe(400);
     });
   });
 
@@ -184,7 +220,13 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
 
     it('202 after the PostgreSQL commit, then delivered; event/delivery/attempt endpoints agree', async () => {
       const eventId = randomUUID();
-      const res = await post({ type: 'demo.counter.increment', aggregateId: 'manual-1', sequence: 1, data: { delta: 3 }, eventId });
+      const res = await post({
+        type: 'demo.counter.increment',
+        aggregateId: 'manual-1',
+        sequence: 1,
+        data: { delta: 3 },
+        eventId,
+      });
       expect(res.status).toBe(202);
       expect(res.body).toMatchObject({ eventId });
       expect(res.headers['x-correlation-id']).toBeTruthy();
@@ -210,18 +252,74 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
     });
 
     it('validates the body (400), the data per type (422) and rejects a reused eventId (409)', async () => {
-      expect((await post({ type: 'nope', aggregateId: 'a', sequence: 1, data: {} })).status).toBe(400);
-      expect((await post({ type: 'demo.counter.increment', aggregateId: 'a', sequence: -1, data: { delta: 1 } })).status).toBe(400);
-      expect((await post({ type: 'demo.counter.increment', aggregateId: 'a', sequence: 1, data: { delta: 1 }, url: 'http://evil.example' })).status).toBe(400);
-      expect((await post({ type: 'demo.counter.increment', aggregateId: 'a', sequence: 1, data: { delta: 'x' } })).status).toBe(422);
+      expect((await post({ type: 'nope', aggregateId: 'a', sequence: 1, data: {} })).status).toBe(
+        400,
+      );
+      expect(
+        (
+          await post({
+            type: 'demo.counter.increment',
+            aggregateId: 'a',
+            sequence: -1,
+            data: { delta: 1 },
+          })
+        ).status,
+      ).toBe(400);
+      expect(
+        (
+          await post({
+            type: 'demo.counter.increment',
+            aggregateId: 'a',
+            sequence: 1,
+            data: { delta: 1 },
+            url: 'http://evil.example',
+          })
+        ).status,
+      ).toBe(400);
+      expect(
+        (
+          await post({
+            type: 'demo.counter.increment',
+            aggregateId: 'a',
+            sequence: 1,
+            data: { delta: 'x' },
+          })
+        ).status,
+      ).toBe(422);
       const eventId = randomUUID();
-      expect((await post({ type: 'demo.counter.increment', aggregateId: 'a', sequence: 1, data: { delta: 1 }, eventId })).status).toBe(202);
-      expect((await post({ type: 'demo.counter.increment', aggregateId: 'a', sequence: 1, data: { delta: 1 }, eventId })).status).toBe(409);
+      expect(
+        (
+          await post({
+            type: 'demo.counter.increment',
+            aggregateId: 'a',
+            sequence: 1,
+            data: { delta: 1 },
+            eventId,
+          })
+        ).status,
+      ).toBe(202);
+      expect(
+        (
+          await post({
+            type: 'demo.counter.increment',
+            aggregateId: 'a',
+            sequence: 1,
+            data: { delta: 1 },
+            eventId,
+          })
+        ).status,
+      ).toBe(409);
     });
 
     it('refuses manual events for runs that are not open', async () => {
       const run = await runScenario('healthy');
-      const res = await post({ type: 'demo.counter.increment', aggregateId: 'a', sequence: 1, data: { delta: 1 }, runId: run.id });
+      const res = await post({
+        type: 'demo.counter.increment',
+        aggregateId: 'a',
+        sequence: 1,
+        data: { delta: 1 },
+        runId: run.id,
+      });
       expect(res.status).toBe(409);
     });
   });
@@ -235,7 +333,9 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
       expect(page1.items).toHaveLength(2);
       expect(page2.items).toHaveLength(2);
       expect(page1.items[0].id).not.toBe(page2.items[0].id);
-      expect((await http.get(`/api/events?runId=${run.id}&type=demo.order.snapshot`)).body.total).toBe(0);
+      expect(
+        (await http.get(`/api/events?runId=${run.id}&type=demo.order.snapshot`)).body.total,
+      ).toBe(0);
       expect((await http.get(`/api/events?runId=${run.id}&state=succeeded`)).body.total).toBe(5);
       expect((await http.get(`/api/events?runId=${run.id}&state=dead`)).body.total).toBe(0);
       expect((await http.get(`/api/events?q=${page1.items[0].id}`)).body.total).toBe(1);
@@ -245,11 +345,16 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
     it('replaying a succeeded delivery succeeds again without a second business effect', async () => {
       const run = await runScenario('healthy');
       const [event] = (await http.get(`/api/events?runId=${run.id}`)).body.items;
-      const deliveryId = (await http.get(`/api/events/${event.id}`)).body.deliveries[0].id as string;
+      const deliveryId = (await http.get(`/api/events/${event.id}`)).body.deliveries[0]
+        .id as string;
       const replay = await http.post(`/api/deliveries/${deliveryId}/replay`);
       expect(replay.status).toBe(202);
       expect(replay.body).toMatchObject({ replayOfDeliveryId: deliveryId, eventId: event.id });
-      await waitFor(async () => (await http.get(`/api/deliveries/${replay.body.deliveryId}`)).body.state === 'succeeded', { timeoutMs: 20_000 });
+      await waitFor(
+        async () =>
+          (await http.get(`/api/deliveries/${replay.body.deliveryId}`)).body.state === 'succeeded',
+        { timeoutMs: 20_000 },
+      );
       const metrics = (await http.get(`/api/runs/${run.id}/metrics`)).body;
       expect(metrics.businessEffects).toBe(1);
       expect(metrics.receiver.byResult).toMatchObject({ processed: 1, duplicate: 1 });
@@ -289,7 +394,13 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
       expect(endpoints[0].url).toContain('/webhooks/receiver-fixture');
       const doc = (await http.get('/api/openapi.json')).body;
       expect(Object.keys(doc.paths)).toEqual(
-        expect.arrayContaining(['/api/events', '/api/deliveries/{id}/replay', '/api/dead-letters', '/api/runs/{id}/metrics', '/api/receiver/state']),
+        expect.arrayContaining([
+          '/api/events',
+          '/api/deliveries/{id}/replay',
+          '/api/dead-letters',
+          '/api/runs/{id}/metrics',
+          '/api/receiver/state',
+        ]),
       );
     });
 
@@ -301,14 +412,24 @@ describe('full pipeline: API -> outbox -> BullMQ -> worker -> HTTP receiver (Pos
 
   it('never calls anything outside the allowlisted receiver (endpoint URL tampering is blocked at send time)', async () => {
     const [endpoint] = await t.query<{ id: string; url: string }>('SELECT id, url FROM endpoints');
-    await t.query("UPDATE endpoints SET url = 'http://127.0.0.1:9/elsewhere' WHERE id = $1", [endpoint!.id]);
+    await t.query("UPDATE endpoints SET url = 'http://127.0.0.1:9/elsewhere' WHERE id = $1", [
+      endpoint!.id,
+    ]);
     try {
-      const res = await http.post('/api/events').send({ type: 'demo.counter.increment', aggregateId: 'ssrf', sequence: 1, data: { delta: 1 } });
+      const res = await http.post('/api/events').send({
+        type: 'demo.counter.increment',
+        aggregateId: 'ssrf',
+        sequence: 1,
+        data: { delta: 1 },
+      });
       const deliveryId = res.body.deliveryIds[0] as string;
-      const d = await waitFor(async () => {
-        const x = (await http.get(`/api/deliveries/${deliveryId}`)).body;
-        return x.state === 'dead' ? x : null;
-      }, { timeoutMs: 20_000 });
+      const d = await waitFor(
+        async () => {
+          const x = (await http.get(`/api/deliveries/${deliveryId}`)).body;
+          return x.state === 'dead' ? x : null;
+        },
+        { timeoutMs: 20_000 },
+      );
       expect(d.lastErrorCode).toBe('endpoint_not_allowlisted');
       expect(d.attemptCount).toBe(1);
     } finally {

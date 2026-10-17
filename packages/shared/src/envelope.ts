@@ -28,7 +28,8 @@ export const envelopeSchema = z
     data: z.unknown(),
   })
   .superRefine((value, ctx) => {
-    const schema = value.type === EVENT_TYPES.counterIncrement ? counterDataSchema : orderDataSchema;
+    const schema =
+      value.type === EVENT_TYPES.counterIncrement ? counterDataSchema : orderDataSchema;
     const parsed = schema.safeParse(value.data);
     if (!parsed.success) {
       for (const issue of parsed.error.issues) {

@@ -13,7 +13,11 @@ export interface CreateDbOptions {
 export function createDb(connectionString: string, options: CreateDbOptions = {}): Db {
   // Force UTC for the session: Prisma sends Dates without an offset, so a non-UTC server timezone would
   // silently shift every timestamp. All times are stored and compared in UTC.
-  const adapter = new PrismaPg({ connectionString, max: options.max ?? 10, options: '-c timezone=UTC' });
+  const adapter = new PrismaPg({
+    connectionString,
+    max: options.max ?? 10,
+    options: '-c timezone=UTC',
+  });
   return new PrismaClient({ adapter });
 }
 

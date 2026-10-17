@@ -8,12 +8,7 @@ import { Client } from 'pg';
 import { createApiApp } from '@lab/api';
 import { createReceiverApp } from '@lab/receiver';
 import { createWorkerApp } from '@lab/worker';
-import {
-  createRun,
-  createDb,
-  seedDatabase,
-  type Db,
-} from '@lab/db';
+import { createRun, createDb, seedDatabase, type Db } from '@lab/db';
 import {
   HEADERS,
   buildBlueprint,
@@ -28,14 +23,16 @@ import {
 } from '@lab/shared';
 
 export const REPO_ROOT = resolve(__dirname, '..', '..');
-const ADMIN_URL = process.env.TEST_DATABASE_ADMIN_URL ?? 'postgresql://lab:lab@127.0.0.1:5440/postgres';
+const ADMIN_URL =
+  process.env.TEST_DATABASE_ADMIN_URL ?? 'postgresql://lab:lab@127.0.0.1:5440/postgres';
 
 export function redisBinary(): string {
   if (process.env.REDIS_SERVER_BIN) return process.env.REDIS_SERVER_BIN;
   const base = join(REPO_ROOT, '.tools', 'redis');
   if (existsSync(base)) {
     const dir = readdirSync(base).find((d) => d.startsWith('Redis-'));
-    if (dir) return join(base, dir, process.platform === 'win32' ? 'redis-server.exe' : 'redis-server');
+    if (dir)
+      return join(base, dir, process.platform === 'win32' ? 'redis-server.exe' : 'redis-server');
   }
   return 'redis-server';
 }
@@ -70,7 +67,9 @@ export async function waitFor<T>(
     }
     await sleep(opts.intervalMs ?? 50);
   }
-  throw new Error(`timed out waiting for ${opts.what ?? 'condition'}${last ? `: ${String(last)}` : ''}`);
+  throw new Error(
+    `timed out waiting for ${opts.what ?? 'condition'}${last ? `: ${String(last)}` : ''}`,
+  );
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -89,14 +88,18 @@ export async function createTestDatabase(receiverUrl: string): Promise<TestDatab
   const name = `lab_test_${randomBytes(4).toString('hex')}`;
   const admin = new Client({ connectionString: ADMIN_URL });
   await admin.connect();
-  await admin.query(`CREATE DATABASE ${name} ENCODING 'UTF8' TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C'`);
+  await admin.query(
+    `CREATE DATABASE ${name} ENCODING 'UTF8' TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C'`,
+  );
   await admin.end();
 
   const url = ADMIN_URL.replace(/\/[^/]*$/, `/${name}`);
   const migrations = join(REPO_ROOT, 'packages', 'db', 'prisma', 'migrations');
   const c = new Client({ connectionString: url });
   await c.connect();
-  for (const dir of readdirSync(migrations).filter((d) => /^\d/.test(d)).sort()) {
+  for (const dir of readdirSync(migrations)
+    .filter((d) => /^\d/.test(d))
+    .sort()) {
     await c.query(readFileSync(join(migrations, dir, 'migration.sql'), 'utf8'));
   }
   await c.end();
@@ -155,10 +158,17 @@ export class TestRedis {
     if (this.proc) return;
     const dir = join(REPO_ROOT, '.tools', 'redis-test', String(this.port));
     mkdirSync(dir, { recursive: true });
-    this.proc = spawn(redisBinary(), ['--port', String(this.port), '--save', '', '--appendonly', 'no', '--dir', dir], {
-      stdio: 'ignore',
+    this.proc = spawn(
+      redisBinary(),
+      ['--port', String(this.port), '--save', '', '--appendonly', 'no', '--dir', dir],
+      {
+        stdio: 'ignore',
+      },
+    );
+    await waitFor(() => redisPing(this.port), {
+      timeoutMs: 10_000,
+      what: 'redis to accept connections',
     });
-    await waitFor(() => redisPing(this.port), { timeoutMs: 10_000, what: 'redis to accept connections' });
   }
   /** Hard stop: the in-memory queue state is gone after the next start (no persistence). */
   async stop(): Promise<void> {
@@ -226,7 +236,10 @@ export interface ChildHandle {
 export function spawnApp(app: 'worker' | 'api' | 'receiver', config: AppConfig): ChildHandle {
   const main = join(REPO_ROOT, 'apps', app, 'dist', 'main.js');
   if (!existsSync(main)) throw new Error(`${main} is missing - run "pnpm build" first`);
-  const proc = spawn(process.execPath, [main], { env: configToEnv(config), stdio: ['ignore', 'pipe', 'pipe'] });
+  const proc = spawn(process.execPath, [main], {
+    env: configToEnv(config),
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
   let out = '';
   proc.stdout?.on('data', (d) => (out += d.toString()));
   proc.stderr?.on('data', (d) => (out += d.toString()));
@@ -245,7 +258,9 @@ export function spawnApp(app: 'worker' | 'api' | 'receiver', config: AppConfig):
 export async function waitForWorkerReady(config: AppConfig): Promise<void> {
   await waitFor(
     async () => {
-      const res = await fetch(`http://127.0.0.1:${config.WORKER_HEALTH_PORT}/health/ready`).catch(() => null);
+      const res = await fetch(`http://127.0.0.1:${config.WORKER_HEALTH_PORT}/health/ready`).catch(
+        () => null,
+      );
       return res?.ok;
     },
     { timeoutMs: 20_000, what: 'worker health' },
@@ -271,7 +286,10 @@ export class ReceiverHandle {
   }
 }
 
-export async function startApi(config: AppConfig, opts: { backgroundJobs?: boolean } = {}): Promise<INestApplication> {
+export async function startApi(
+  config: AppConfig,
+  opts: { backgroundJobs?: boolean } = {},
+): Promise<INestApplication> {
   if (opts.backgroundJobs === false) process.env.LAB_DISABLE_BACKGROUND_JOBS = '1';
   else delete process.env.LAB_DISABLE_BACKGROUND_JOBS;
   const app = await createApiApp(config);
@@ -289,7 +307,13 @@ export async function startWorker(config: AppConfig): Promise<INestApplicationCo
 // Signed requests straight at the receiver
 // ---------------------------------------------------------------------------------------------
 
-export function counterEnvelope(opts: { id?: string; runId: string; sequence?: number; delta?: number; aggregateId?: string }) {
+export function counterEnvelope(opts: {
+  id?: string;
+  runId: string;
+  sequence?: number;
+  delta?: number;
+  aggregateId?: string;
+}) {
   return {
     id: opts.id ?? randomUUID(),
     type: 'demo.counter.increment' as const,
@@ -385,7 +409,15 @@ export async function createCustomRun(
     blueprint.steps = [
       {
         kind: 'emit',
-        events: [{ type: 'demo.counter.increment', aggregateId: 'counter-demo', sequence: 1, data: { delta: 1 }, deliveries: p.deliveriesPerEvent }],
+        events: [
+          {
+            type: 'demo.counter.increment',
+            aggregateId: 'counter-demo',
+            sequence: 1,
+            data: { delta: 1 },
+            deliveries: p.deliveriesPerEvent,
+          },
+        ],
       },
       { kind: 'await_terminal' },
     ];
@@ -410,8 +442,16 @@ export async function deliveryRows(t: TestDatabase, runId: string) {
   );
 }
 
-export async function count(t: TestDatabase, table: string, where = 'TRUE', params: unknown[] = []): Promise<number> {
-  const [row] = await t.query<{ n: number }>(`SELECT count(*)::int AS n FROM ${table} WHERE ${where}`, params);
+export async function count(
+  t: TestDatabase,
+  table: string,
+  where = 'TRUE',
+  params: unknown[] = [],
+): Promise<number> {
+  const [row] = await t.query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM ${table} WHERE ${where}`,
+    params,
+  );
   return row!.n;
 }
 

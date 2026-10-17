@@ -12,7 +12,10 @@ export const EVENT_TYPES = {
   orderSnapshot: 'demo.order.snapshot',
 } as const;
 export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
-export const EVENT_TYPE_LIST: EventType[] = [EVENT_TYPES.counterIncrement, EVENT_TYPES.orderSnapshot];
+export const EVENT_TYPE_LIST: EventType[] = [
+  EVENT_TYPES.counterIncrement,
+  EVENT_TYPES.orderSnapshot,
+];
 
 export const LIMITS = {
   maxPayloadBytes: 64 * 1024,
@@ -39,7 +42,11 @@ export const ATTEMPT_OUTCOMES = [
 ] as const;
 export type AttemptOutcome = (typeof ATTEMPT_OUTCOMES)[number];
 /** Outcomes where the sender cannot know whether the receiver processed the request. */
-export const UNKNOWN_AT_SENDER_OUTCOMES: AttemptOutcome[] = ['timeout', 'worker_lost', 'network_error'];
+export const UNKNOWN_AT_SENDER_OUTCOMES: AttemptOutcome[] = [
+  'timeout',
+  'worker_lost',
+  'network_error',
+];
 
 export const RUN_STATUSES = ['open', 'running', 'passed', 'failed'] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];

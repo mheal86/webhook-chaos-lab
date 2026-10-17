@@ -1,7 +1,17 @@
 import { Link } from 'react-router-dom';
 import { useMetrics, useRun, useSelectedRun } from '../api/hooks';
 import { AssertionsTable } from '../components/Assertions';
-import { EmptyState, ErrorState, Loading, PageTitle, Panel, Stat, StatusBadge, fmtDateTime, shortId } from '../components/ui';
+import {
+  EmptyState,
+  ErrorState,
+  Loading,
+  PageTitle,
+  Panel,
+  Stat,
+  StatusBadge,
+  fmtDateTime,
+  shortId,
+} from '../components/ui';
 
 export function Overview() {
   const { runId } = useSelectedRun();
@@ -16,15 +26,19 @@ export function Overview() {
           title="No run yet"
           hint={
             <>
-              Pick a fault scenario in the <Link className="text-sky-300 underline" to="/runner">Scenario Runner</Link> and
-              press Run.
+              Pick a fault scenario in the{' '}
+              <Link className="text-sky-300 underline" to="/runner">
+                Scenario Runner
+              </Link>{' '}
+              and press Run.
             </>
           }
         />
       </>
     );
   }
-  if (metrics.isError) return <ErrorState error={metrics.error} retry={() => void metrics.refetch()} />;
+  if (metrics.isError)
+    return <ErrorState error={metrics.error} retry={() => void metrics.refetch()} />;
   if (!metrics.data) return <Loading />;
 
   const m = metrics.data;
@@ -37,9 +51,10 @@ export function Overview() {
         title="Overview"
         subtitle={
           <>
-            Numbers for the selected run, straight from PostgreSQL. A <b>delivery</b> succeeds when it ends in a 2xx
-            attempt; an <b>HTTP attempt</b> is a single request; a <b>business effect</b> is what the receiver actually
-            applied. These are three different counts.
+            Numbers for the selected run, straight from PostgreSQL. A <b>delivery</b> succeeds when
+            it ends in a 2xx attempt; an <b>HTTP attempt</b> is a single request; a{' '}
+            <b>business effect</b> is what the receiver actually applied. These are three different
+            counts.
           </>
         }
         actions={
@@ -56,15 +71,35 @@ export function Overview() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid="overview-stats">
         <Stat label="Events" value={m.events} />
         <Stat label="Deliveries" value={m.deliveries.total} hint="one event can have several" />
-        <Stat label="Succeeded" value={m.deliveries.succeeded} tone="green" hint="deliveries ending in 2xx" />
-        <Stat label="Dead" value={m.deliveries.dead} tone={m.deliveries.dead ? 'red' : undefined} hint="retry budget spent / permanent error" />
-        <Stat label="Retrying" value={retrying} tone={retrying ? 'amber' : undefined} hint="queued + in flight + retry wait" />
+        <Stat
+          label="Succeeded"
+          value={m.deliveries.succeeded}
+          tone="green"
+          hint="deliveries ending in 2xx"
+        />
+        <Stat
+          label="Dead"
+          value={m.deliveries.dead}
+          tone={m.deliveries.dead ? 'red' : undefined}
+          hint="retry budget spent / permanent error"
+        />
+        <Stat
+          label="Retrying"
+          value={retrying}
+          tone={retrying ? 'amber' : undefined}
+          hint="queued + in flight + retry wait"
+        />
         <Stat
           label="HTTP attempts"
           value={m.attempts.total}
           hint={`${m.attempts.byOutcome.success} succeeded · ${m.attempts.byOutcome.timeout} timeout`}
         />
-        <Stat label="Business effects" value={m.businessEffects} tone="blue" hint="applied once by the receiver" />
+        <Stat
+          label="Business effects"
+          value={m.businessEffects}
+          tone="blue"
+          hint="applied once by the receiver"
+        />
         <Stat
           label="Receiver duplicates"
           value={m.receiver.byResult.duplicate}
@@ -76,19 +111,29 @@ export function Overview() {
         <Panel
           title="Expected vs actual"
           className="lg:col-span-2"
-          action={<Link to="/runner" className="text-sm text-sky-300 hover:underline">Scenario Runner →</Link>}
+          action={
+            <Link to="/runner" className="text-sm text-sky-300 hover:underline">
+              Scenario Runner →
+            </Link>
+          }
         >
           {run.data && run.data.assertions.length > 0 ? (
             <AssertionsTable assertions={run.data.assertions} />
           ) : (
-            <p className="text-sm text-muted">This run has no scenario expectations (manual workspace).</p>
+            <p className="text-sm text-muted">
+              This run has no scenario expectations (manual workspace).
+            </p>
           )}
-          {run.data?.failureReason && <p className="mt-3 text-sm text-rose-300">Failure reason: {run.data.failureReason}</p>}
+          {run.data?.failureReason && (
+            <p className="mt-3 text-sm text-rose-300">Failure reason: {run.data.failureReason}</p>
+          )}
         </Panel>
 
         <div className="space-y-5">
           <Panel title="Attempt latency (p95)">
-            <div className="text-2xl font-semibold tabular-nums">{lat.p95 === null ? '—' : `${lat.p95} ${lat.unit}`}</div>
+            <div className="text-2xl font-semibold tabular-nums">
+              {lat.p95 === null ? '—' : `${lat.p95} ${lat.unit}`}
+            </div>
             <p className="mt-2 text-xs text-muted">
               Nearest-rank p95 over <b>{lat.sampleCount}</b> samples. Sample: {lat.window}.
             </p>

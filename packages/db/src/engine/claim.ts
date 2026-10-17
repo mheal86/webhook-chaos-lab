@@ -17,16 +17,10 @@ export interface ClaimedDelivery {
 }
 
 export type ClaimRejection =
-  | 'not_found'
-  | 'stale_generation'
-  | 'terminal'
-  | 'held_by_other'
-  | 'not_due'
-  | 'budget_exhausted';
+  'not_found' | 'stale_generation' | 'terminal' | 'held_by_other' | 'not_due' | 'budget_exhausted';
 
 export type ClaimResult =
-  | { claimed: true; claim: ClaimedDelivery }
-  | { claimed: false; reason: ClaimRejection };
+  { claimed: true; claim: ClaimedDelivery } | { claimed: false; reason: ClaimRejection };
 
 interface ClaimRow {
   id: string;
@@ -96,7 +90,10 @@ export async function claimDelivery(
       },
     };
   }
-  return { claimed: false, reason: await diagnoseRejection(db, params.deliveryId, params.generation) };
+  return {
+    claimed: false,
+    reason: await diagnoseRejection(db, params.deliveryId, params.generation),
+  };
 }
 
 async function diagnoseRejection(
@@ -182,6 +179,12 @@ export async function loadSendContext(db: Db, claim: ClaimedDelivery): Promise<S
       secretRef: row.secret_ref,
       enabled: row.enabled,
     },
-    run: { id: row.run_id, seed: row.seed, phase: row.phase, config: row.config, faultPlan: row.fault_plan },
+    run: {
+      id: row.run_id,
+      seed: row.seed,
+      phase: row.phase,
+      config: row.config,
+      faultPlan: row.fault_plan,
+    },
   };
 }

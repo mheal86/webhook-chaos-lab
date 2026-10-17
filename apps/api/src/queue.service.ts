@@ -51,7 +51,9 @@ export class QueueService implements OnApplicationShutdown {
     try {
       await Promise.race([
         this.queue.getJobCounts('waiting'),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('redis ping timed out')), 1500)),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('redis ping timed out')), 1500),
+        ),
       ]);
       return true;
     } catch {

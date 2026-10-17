@@ -26,7 +26,9 @@ export async function computeRunMetrics(db: DbOrTx, runId: string): Promise<RunM
   const [events] = await db.$queryRaw<Array<{ n: number }>>`
     SELECT count(*)::int AS n FROM events WHERE run_id = ${runId}`;
 
-  const deliveryRows = await db.$queryRaw<Array<{ state: string; terminal_reason: string | null; n: number }>>`
+  const deliveryRows = await db.$queryRaw<
+    Array<{ state: string; terminal_reason: string | null; n: number }>
+  >`
     SELECT state::text AS state, terminal_reason, count(*)::int AS n
     FROM deliveries WHERE run_id = ${runId} GROUP BY 1, 2`;
   const deliveries: RunMetrics['deliveries'] = {
@@ -106,13 +108,20 @@ export async function computeRunMetrics(db: DbOrTx, runId: string): Promise<RunM
         p95: latency?.p95 ?? null,
         sampleCount: latency?.n ?? 0,
         unit: 'ms',
-        window: 'attempts of this run that received an HTTP response (success, http_retryable, http_permanent); run lifetime',
+        window:
+          'attempts of this run that received an HTTP response (success, http_retryable, http_permanent); run lifetime',
       },
     },
     receiver: { requests, byResult, receiveOrder: order?.order ?? '' },
     businessEffects: effects?.n ?? 0,
-    projections: { counterValue: counter?.value ?? null, orderSequence: orderProj?.sequence ?? null },
-    lineage: { replayDeliveries: lineage?.replays ?? 0, deadWithReplay: lineage?.dead_with_replay ?? 0 },
+    projections: {
+      counterValue: counter?.value ?? null,
+      orderSequence: orderProj?.sequence ?? null,
+    },
+    lineage: {
+      replayDeliveries: lineage?.replays ?? 0,
+      deadWithReplay: lineage?.dead_with_replay ?? 0,
+    },
     generatedAt: new Date().toISOString(),
   };
 }
@@ -137,8 +146,11 @@ export function evaluateAssertions(
 ): AssertionResult[] {
   return specs.map((spec) => {
     const actual = getPath(metrics, spec.metric);
-    const expectedValue = spec.expectedMetric ? getPath(metrics, spec.expectedMetric) : (spec.expected ?? null);
-    const met = actual !== null && expectedValue !== null && String(actual) === String(expectedValue);
+    const expectedValue = spec.expectedMetric
+      ? getPath(metrics, spec.expectedMetric)
+      : (spec.expected ?? null);
+    const met =
+      actual !== null && expectedValue !== null && String(actual) === String(expectedValue);
     return {
       ...spec,
       actual,

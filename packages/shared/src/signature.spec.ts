@@ -30,7 +30,10 @@ describe('signature', () => {
   });
 
   it('rejects a tampered body', () => {
-    expect(verify({ rawBody: Buffer.from('{"id":"y"}') })).toEqual({ ok: false, code: 'signature_mismatch' });
+    expect(verify({ rawBody: Buffer.from('{"id":"y"}') })).toEqual({
+      ok: false,
+      code: 'signature_mismatch',
+    });
   });
 
   it('rejects the wrong secret', () => {
@@ -51,8 +54,14 @@ describe('signature', () => {
   });
 
   it('reports missing headers', () => {
-    expect(verify({ signatureHeader: undefined })).toEqual({ ok: false, code: 'missing_signature' });
-    expect(verify({ timestampHeader: undefined })).toEqual({ ok: false, code: 'missing_timestamp' });
+    expect(verify({ signatureHeader: undefined })).toEqual({
+      ok: false,
+      code: 'missing_signature',
+    });
+    expect(verify({ timestampHeader: undefined })).toEqual({
+      ok: false,
+      code: 'missing_timestamp',
+    });
     expect(verify({ timestampHeader: 'abc' })).toEqual({ ok: false, code: 'malformed_timestamp' });
   });
 
@@ -60,21 +69,30 @@ describe('signature', () => {
     const old = String(Math.floor(nowMs / 1000) - LIMITS.signatureToleranceSeconds - 1);
     const future = String(Math.floor(nowMs / 1000) + LIMITS.signatureToleranceSeconds + 1);
     const edge = String(Math.floor(nowMs / 1000) - LIMITS.signatureToleranceSeconds);
-    expect(verify({ timestampHeader: old, signatureHeader: signPayload(secret, old, body) })).toEqual({
+    expect(
+      verify({ timestampHeader: old, signatureHeader: signPayload(secret, old, body) }),
+    ).toEqual({
       ok: false,
       code: 'timestamp_out_of_window',
     });
-    expect(verify({ timestampHeader: future, signatureHeader: signPayload(secret, future, body) })).toEqual({
+    expect(
+      verify({ timestampHeader: future, signatureHeader: signPayload(secret, future, body) }),
+    ).toEqual({
       ok: false,
       code: 'timestamp_out_of_window',
     });
-    expect(verify({ timestampHeader: edge, signatureHeader: signPayload(secret, edge, body) })).toEqual({ ok: true });
+    expect(
+      verify({ timestampHeader: edge, signatureHeader: signPayload(secret, edge, body) }),
+    ).toEqual({ ok: true });
   });
 
   it('does not accept a replayed signature with a refreshed timestamp', () => {
     const sig = signPayload(secret, ts, body);
     const newTs = String(Number(ts) + 10);
-    expect(verify({ timestampHeader: newTs, signatureHeader: sig })).toEqual({ ok: false, code: 'signature_mismatch' });
+    expect(verify({ timestampHeader: newTs, signatureHeader: sig })).toEqual({
+      ok: false,
+      code: 'signature_mismatch',
+    });
   });
 });
 
@@ -100,7 +118,8 @@ describe('envelope', () => {
     expect(envelopeSchema.safeParse(base).success).toBe(true);
     expect(envelopeSchema.safeParse({ ...base, data: { delta: 1.5 } }).success).toBe(false);
     expect(
-      envelopeSchema.safeParse({ ...base, type: 'demo.order.snapshot', data: { delta: 1 } }).success,
+      envelopeSchema.safeParse({ ...base, type: 'demo.order.snapshot', data: { delta: 1 } })
+        .success,
     ).toBe(false);
     expect(
       envelopeSchema.safeParse({
@@ -114,7 +133,9 @@ describe('envelope', () => {
   it('deterministicUuid is stable and v4-shaped', () => {
     expect(deterministicUuid('x')).toBe(deterministicUuid('x'));
     expect(deterministicUuid('x')).not.toBe(deterministicUuid('y'));
-    expect(deterministicUuid('x')).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(deterministicUuid('x')).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
   });
 
   it('exposes lowercase header names', () => {

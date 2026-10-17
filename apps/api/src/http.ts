@@ -41,11 +41,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const body = exception.getResponse();
-      res.status(status).json(typeof body === 'string' ? { statusCode: status, message: body } : body);
+      res
+        .status(status)
+        .json(typeof body === 'string' ? { statusCode: status, message: body } : body);
       return;
     }
-    this.log.error('unhandled error', { correlationId: req.correlationId, path: req.url, ...errorFields(exception) });
-    res.status(500).json({ statusCode: 500, error: 'internal_error', message: 'Internal server error' });
+    this.log.error('unhandled error', {
+      correlationId: req.correlationId,
+      path: req.url,
+      ...errorFields(exception),
+    });
+    res
+      .status(500)
+      .json({ statusCode: 500, error: 'internal_error', message: 'Internal server error' });
   }
 }
 
@@ -53,7 +61,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
 export function correlationMiddleware(log: Logger) {
   return (req: Request & { correlationId?: string }, res: Response, next: NextFunction) => {
     const incoming = req.headers['x-correlation-id'];
-    const id = typeof incoming === 'string' && /^[\w-]{8,64}$/.test(incoming) ? incoming : randomUUID();
+    const id =
+      typeof incoming === 'string' && /^[\w-]{8,64}$/.test(incoming) ? incoming : randomUUID();
     req.correlationId = id;
     res.setHeader('x-correlation-id', id);
     const started = Date.now();

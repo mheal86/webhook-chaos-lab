@@ -10,7 +10,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(join(root, 'packages', 'db', 'package.json'));
 const { Client } = require('pg');
 
-const adminUrl = process.env.TEST_DATABASE_ADMIN_URL ?? 'postgresql://lab:lab@127.0.0.1:5440/postgres';
+const adminUrl =
+  process.env.TEST_DATABASE_ADMIN_URL ?? 'postgresql://lab:lab@127.0.0.1:5440/postgres';
 const redisUrl = process.env.E2E_REDIS_URL ?? process.env.REDIS_URL ?? 'redis://127.0.0.1:6390';
 const dbName = 'lab_e2e';
 const dbUrl = adminUrl.replace(/\/[^/]*$/, `/${dbName}`);
@@ -19,7 +20,9 @@ const ports = { api: 3401, receiver: 3402, worker: 3403, web: 4173 };
 const admin = new Client({ connectionString: adminUrl });
 await admin.connect();
 await admin.query(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
-await admin.query(`CREATE DATABASE ${dbName} ENCODING 'UTF8' TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C'`);
+await admin.query(
+  `CREATE DATABASE ${dbName} ENCODING 'UTF8' TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C'`,
+);
 await admin.end();
 
 const env = {
@@ -52,17 +55,22 @@ const children = [
   spawn(process.execPath, [join(root, 'apps/receiver/dist/main.js')], { env, stdio: 'inherit' }),
   spawn(process.execPath, [join(root, 'apps/worker/dist/main.js')], { env, stdio: 'inherit' }),
   spawn(process.execPath, [join(root, 'apps/api/dist/main.js')], { env, stdio: 'inherit' }),
-  spawn('pnpm', ['exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', String(ports.web), '--strictPort'], {
-    cwd: join(root, 'apps/web'),
-    env,
-    stdio: 'inherit',
-    shell,
-  }),
+  spawn(
+    'pnpm',
+    ['exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', String(ports.web), '--strictPort'],
+    {
+      cwd: join(root, 'apps/web'),
+      env,
+      stdio: 'inherit',
+      shell,
+    },
+  ),
 ];
 
 const stop = () => {
   for (const c of children) {
-    if (process.platform === 'win32' && c.pid) spawnSync('taskkill', ['/PID', String(c.pid), '/T', '/F'], { stdio: 'ignore' });
+    if (process.platform === 'win32' && c.pid)
+      spawnSync('taskkill', ['/PID', String(c.pid), '/T', '/F'], { stdio: 'ignore' });
     else c.kill('SIGTERM');
   }
   process.exit(0);

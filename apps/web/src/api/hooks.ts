@@ -1,4 +1,12 @@
-import { createContext, createElement, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type EventsQuery } from './client';
 
@@ -10,7 +18,8 @@ export function useRuns() {
   return useQuery({
     queryKey: ['runs'],
     queryFn: api.runs,
-    refetchInterval: (q) => (q.state.data?.some((r) => r.status === 'running') ? ACTIVE_POLL_MS : IDLE_POLL_MS),
+    refetchInterval: (q) =>
+      q.state.data?.some((r) => r.status === 'running') ? ACTIVE_POLL_MS : IDLE_POLL_MS,
   });
 }
 
@@ -21,7 +30,11 @@ interface RunSelection {
   setRunId: (id: string) => void;
   isActive: boolean;
 }
-const RunContext = createContext<RunSelection>({ runId: undefined, setRunId: () => undefined, isActive: false });
+const RunContext = createContext<RunSelection>({
+  runId: undefined,
+  setRunId: () => undefined,
+  isActive: false,
+});
 
 const STORAGE_KEY = 'chaos-lab.runId';
 function readStored(): string | undefined {
@@ -39,7 +52,7 @@ export function RunProvider({ children }: { children: ReactNode }) {
   const exists = chosen !== undefined && list?.some((r) => r.id === chosen);
   // Default to the newest scenario run (not the manual workspace) once runs are known.
   const fallback = list?.find((r) => r.type !== 'manual')?.id ?? list?.[0]?.id;
-  const runId = exists ? chosen : (list ? fallback : chosen);
+  const runId = exists ? chosen : list ? fallback : chosen;
 
   const value = useMemo<RunSelection>(
     () => ({
@@ -105,7 +118,9 @@ export function useEvent(id: string | undefined) {
     queryFn: () => api.event(id!),
     enabled: Boolean(id),
     refetchInterval: (q) => {
-      const open = q.state.data?.deliveries.some((d) => d.state !== 'succeeded' && d.state !== 'dead');
+      const open = q.state.data?.deliveries.some(
+        (d) => d.state !== 'succeeded' && d.state !== 'dead',
+      );
       return pollMs(isActive || Boolean(open));
     },
   });
@@ -135,8 +150,15 @@ export function useCreateRun() {
   const qc = useQueryClient();
   const { setRunId } = useSelectedRun();
   return useMutation({
-    mutationFn: ({ type, seed, config }: { type: string; seed?: number; config?: Record<string, number> }) =>
-      api.createRun(type, { seed, config }),
+    mutationFn: ({
+      type,
+      seed,
+      config,
+    }: {
+      type: string;
+      seed?: number;
+      config?: Record<string, number>;
+    }) => api.createRun(type, { seed, config }),
     onSuccess: async ({ runId }) => {
       setRunId(runId);
       await qc.invalidateQueries();

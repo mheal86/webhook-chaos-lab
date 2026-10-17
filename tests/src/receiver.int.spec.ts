@@ -24,7 +24,11 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
     const port = await freePort();
     const url = `http://127.0.0.1:${port}/webhooks/receiver-fixture`;
     t = await createTestDatabase(url);
-    config = await makeConfig({ databaseUrl: t.url, redisUrl: 'redis://127.0.0.1:1', receiverPort: port });
+    config = await makeConfig({
+      databaseUrl: t.url,
+      redisUrl: 'redis://127.0.0.1:1',
+      receiverPort: port,
+    });
     receiver = new ReceiverHandle(config);
     await receiver.start();
   });
@@ -46,7 +50,10 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
     expect(res.status).toBe(200);
     expect(res.json.result).toBe('processed');
     expect(await effects(run)).toBe(1);
-    const [counter] = await t.query<{ value: number }>('SELECT value FROM counter_projections WHERE run_id = $1', [run]);
+    const [counter] = await t.query<{ value: number }>(
+      'SELECT value FROM counter_projections WHERE run_id = $1',
+      [run],
+    );
     expect(counter!.value).toBe(5);
     const [row] = await t.query<{ signature_valid: boolean; result: string; http_status: number }>(
       'SELECT signature_valid, result::text AS result, http_status FROM receiver_requests WHERE run_id = $1',
@@ -65,7 +72,10 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
     expect(await effects(run)).toBe(1);
     expect(await markers(run)).toBe(1);
     expect(await count(t, 'receiver_requests', 'run_id = $1', [run])).toBe(20);
-    const [counter] = await t.query<{ value: number }>('SELECT value FROM counter_projections WHERE run_id = $1', [run]);
+    const [counter] = await t.query<{ value: number }>(
+      'SELECT value FROM counter_projections WHERE run_id = $1',
+      [run],
+    );
     expect(counter!.value).toBe(1);
   });
 
@@ -78,18 +88,29 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
     expect(res.status).toBe(409);
     expect(await effects(run)).toBe(1);
     expect(await byResult('conflict', run)).toBe(1);
-    const [counter] = await t.query<{ value: number }>('SELECT value FROM counter_projections WHERE run_id = $1', [run]);
+    const [counter] = await t.query<{ value: number }>(
+      'SELECT value FROM counter_projections WHERE run_id = $1',
+      [run],
+    );
     expect(counter!.value).toBe(1);
   });
 
   describe('signature verification on raw bytes', () => {
     it('wrong secret -> 401, no marker, no effect', async () => {
       const run = randomUUID();
-      const res = await postWebhook(config, counterEnvelope({ runId: run }), { secret: 'not-the-secret' });
+      const res = await postWebhook(config, counterEnvelope({ runId: run }), {
+        secret: 'not-the-secret',
+      });
       expect(res.status).toBe(401);
       expect(await markers(run)).toBe(0);
       expect(await effects(run)).toBe(0);
-      expect(await count(t, 'receiver_requests', "result = 'rejected_signature' AND detail = 'signature_mismatch'")).toBeGreaterThan(0);
+      expect(
+        await count(
+          t,
+          'receiver_requests',
+          "result = 'rejected_signature' AND detail = 'signature_mismatch'",
+        ),
+      ).toBeGreaterThan(0);
     });
 
     it('expired timestamp (older than 5 minutes) -> 401', async () => {
@@ -113,7 +134,9 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
     });
 
     it('missing signature -> 401', async () => {
-      const res = await postWebhook(config, counterEnvelope({ runId: randomUUID() }), { omitSignature: true });
+      const res = await postWebhook(config, counterEnvelope({ runId: randomUUID() }), {
+        omitSignature: true,
+      });
       expect(res.status).toBe(401);
       expect(res.json.code).toBe('missing_signature');
     });
@@ -121,14 +144,18 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
     it('signature is checked on bytes: re-serialised JSON with different whitespace fails', async () => {
       const run = randomUUID();
       const env = counterEnvelope({ runId: run });
-      const res = await postWebhook(config, env, { tamperBody: (raw) => JSON.stringify(JSON.parse(raw), null, 1) });
+      const res = await postWebhook(config, env, {
+        tamperBody: (raw) => JSON.stringify(JSON.parse(raw), null, 1),
+      });
       expect(res.status).toBe(401);
       expect(await effects(run)).toBe(0);
     });
 
     it('X-Lab-Event-Id header that does not match the body -> 400, no effect', async () => {
       const run = randomUUID();
-      const res = await postWebhook(config, counterEnvelope({ runId: run }), { eventIdHeader: randomUUID() });
+      const res = await postWebhook(config, counterEnvelope({ runId: run }), {
+        eventIdHeader: randomUUID(),
+      });
       expect(res.status).toBe(400);
       expect(await markers(run)).toBe(0);
       expect(await effects(run)).toBe(0);
@@ -141,9 +168,16 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
       const r3 = await postWebhook(config, orderEnvelope({ runId: run, sequence: 3 }));
       const r1 = await postWebhook(config, orderEnvelope({ runId: run, sequence: 1 }));
       const r2 = await postWebhook(config, orderEnvelope({ runId: run, sequence: 2 }));
-      expect([r3.json.result, r1.json.result, r2.json.result]).toEqual(['processed', 'stale', 'stale']);
+      expect([r3.json.result, r1.json.result, r2.json.result]).toEqual([
+        'processed',
+        'stale',
+        'stale',
+      ]);
       expect([r3.status, r1.status, r2.status]).toEqual([200, 200, 200]);
-      const [proj] = await t.query<{ sequence: number }>('SELECT sequence FROM order_projections WHERE run_id = $1', [run]);
+      const [proj] = await t.query<{ sequence: number }>(
+        'SELECT sequence FROM order_projections WHERE run_id = $1',
+        [run],
+      );
       expect(proj!.sequence).toBe(3);
       expect(await effects(run)).toBe(1);
       expect(await byResult('stale', run)).toBe(2);
@@ -152,8 +186,13 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
     it('concurrent snapshots never move the projection backwards', async () => {
       const run = randomUUID();
       const seqs = [4, 9, 1, 7, 2, 10, 5, 3, 8, 6];
-      await Promise.all(seqs.map((s) => postWebhook(config, orderEnvelope({ runId: run, sequence: s }))));
-      const [proj] = await t.query<{ sequence: number }>('SELECT sequence FROM order_projections WHERE run_id = $1', [run]);
+      await Promise.all(
+        seqs.map((s) => postWebhook(config, orderEnvelope({ runId: run, sequence: s }))),
+      );
+      const [proj] = await t.query<{ sequence: number }>(
+        'SELECT sequence FROM order_projections WHERE run_id = $1',
+        [run],
+      );
       expect(proj!.sequence).toBe(10);
     });
 
@@ -162,7 +201,10 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
       await postWebhook(config, counterEnvelope({ runId: run, sequence: 5, delta: 2 }));
       const res = await postWebhook(config, counterEnvelope({ runId: run, sequence: 1, delta: 3 }));
       expect(res.json.result).toBe('processed');
-      const [counter] = await t.query<{ value: number }>('SELECT value FROM counter_projections WHERE run_id = $1', [run]);
+      const [counter] = await t.query<{ value: number }>(
+        'SELECT value FROM counter_projections WHERE run_id = $1',
+        [run],
+      );
       expect(counter!.value).toBe(5);
       expect(await effects(run)).toBe(2);
     });
@@ -185,7 +227,10 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
         'SELECT id, raw_payload FROM events WHERE run_id = $1',
         [faultRun],
       );
-      const [delivery] = await t.query<{ id: string }>('SELECT id FROM deliveries WHERE run_id = $1', [faultRun]);
+      const [delivery] = await t.query<{ id: string }>(
+        'SELECT id FROM deliveries WHERE run_id = $1',
+        [faultRun],
+      );
       const envelope = JSON.parse(event!.raw_payload) as { id: string };
 
       const first = await postWebhook(config, envelope, { deliveryId: delivery!.id, attemptNo: 1 });
@@ -194,7 +239,10 @@ describe('receiver: idempotency, signatures, ordering (real PostgreSQL)', () => 
       expect(await effects(faultRun)).toBe(0);
       expect(await byResult('injected_failure', faultRun)).toBe(1);
 
-      const second = await postWebhook(config, envelope, { deliveryId: delivery!.id, attemptNo: 2 });
+      const second = await postWebhook(config, envelope, {
+        deliveryId: delivery!.id,
+        attemptNo: 2,
+      });
       expect(second.status).toBe(200);
       expect(second.json.result).toBe('processed');
       expect(await markers(faultRun)).toBe(1);

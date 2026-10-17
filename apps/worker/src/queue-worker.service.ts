@@ -38,9 +38,15 @@ export class QueueWorkerService implements OnModuleInit, OnApplicationShutdown {
     );
     this.worker.on('error', (err) => this.log.error('queue worker error', errorFields(err)));
     this.worker.on('failed', (job, err) =>
-      this.log.warn('job failed', { jobId: job?.id, deliveryId: job?.data.deliveryId, ...errorFields(err) }),
+      this.log.warn('job failed', {
+        jobId: job?.id,
+        deliveryId: job?.data.deliveryId,
+        ...errorFields(err),
+      }),
     );
-    this.worker.on('stalled', (jobId) => this.log.warn('job stalled (will be re-checked against the DB claim)', { jobId }));
+    this.worker.on('stalled', (jobId) =>
+      this.log.warn('job stalled (will be re-checked against the DB claim)', { jobId }),
+    );
     await this.worker.waitUntilReady();
     this.log.info('worker ready', {
       queue: this.config.QUEUE_NAME,
@@ -63,7 +69,9 @@ export class QueueWorkerService implements OnModuleInit, OnApplicationShutdown {
             await this.db.$queryRaw`SELECT 1`;
             const ready = this.worker?.isRunning() ?? false;
             res.statusCode = ready ? 200 : 503;
-            res.end(JSON.stringify({ status: ready ? 'ok' : 'unavailable', db: 'up', queue: ready }));
+            res.end(
+              JSON.stringify({ status: ready ? 'ok' : 'unavailable', db: 'up', queue: ready }),
+            );
           } catch {
             res.statusCode = 503;
             res.end(JSON.stringify({ status: 'unavailable', db: 'down' }));
@@ -79,7 +87,9 @@ export class QueueWorkerService implements OnModuleInit, OnApplicationShutdown {
 
   async onApplicationShutdown(): Promise<void> {
     await this.worker?.close();
-    await new Promise<void>((resolve) => (this.health ? this.health.close(() => resolve()) : resolve()));
+    await new Promise<void>((resolve) =>
+      this.health ? this.health.close(() => resolve()) : resolve(),
+    );
     await this.db.$disconnect();
   }
 }

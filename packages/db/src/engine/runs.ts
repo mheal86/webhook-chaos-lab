@@ -42,7 +42,10 @@ export async function createRun(
     });
   } catch (err) {
     if (isUniqueViolation(err)) {
-      throw new DomainError('run_already_active', 'another run is still active; wait for it to finish');
+      throw new DomainError(
+        'run_already_active',
+        'another run is still active; wait for it to finish',
+      );
     }
     throw err;
   }
@@ -170,6 +173,8 @@ async function finalizeRun(
 }
 
 export async function listRunningRunIds(db: Db): Promise<string[]> {
-  const rows = await db.$queryRaw<Array<{ id: string }>>`SELECT id FROM scenario_runs WHERE status = 'running'`;
+  const rows = await db.$queryRaw<
+    Array<{ id: string }>
+  >`SELECT id FROM scenario_runs WHERE status = 'running'`;
   return rows.map((r) => r.id);
 }

@@ -31,8 +31,7 @@ export interface DeliveryJob {
 }
 
 export type ProcessOutcome =
-  | { status: 'skipped'; reason: string }
-  | { status: 'completed'; applied: boolean; kind: string };
+  { status: 'skipped'; reason: string } | { status: 'completed'; applied: boolean; kind: string };
 
 @Injectable()
 export class DeliveryProcessor {
@@ -48,7 +47,9 @@ export class DeliveryProcessor {
 
   /** Secrets come from the controlled server environment, referenced by name from the endpoint. */
   private resolveSecret(ref: string): string | undefined {
-    const known: Record<string, string | undefined> = { RECEIVER_SECRET: this.config.RECEIVER_SECRET };
+    const known: Record<string, string | undefined> = {
+      RECEIVER_SECRET: this.config.RECEIVER_SECRET,
+    };
     return known[ref];
   }
 
@@ -61,7 +62,11 @@ export class DeliveryProcessor {
       leaseMs: this.config.LEASE_MS,
     });
     if (!claim.claimed) {
-      this.log.info('job skipped', { deliveryId: job.deliveryId, generation: job.generation, reason: claim.reason });
+      this.log.info('job skipped', {
+        deliveryId: job.deliveryId,
+        generation: job.generation,
+        reason: claim.reason,
+      });
       return { status: 'skipped', reason: claim.reason };
     }
     const c = claim.claim;
@@ -82,7 +87,11 @@ export class DeliveryProcessor {
       LIMITS.httpTimeoutHardCapMs,
       this.config.HTTP_TIMEOUT_HARD_CAP_MS,
     );
-    const faultCtx = { eventIndex: ctx.logicalIndex, deliveryOrdinal: c.ordinal, attemptNo: c.attemptNo };
+    const faultCtx = {
+      eventIndex: ctx.logicalIndex,
+      deliveryOrdinal: c.ordinal,
+      attemptNo: c.attemptNo,
+    };
     const fault = decideFault(ctx.run.faultPlan, ctx.run.phase, faultCtx);
 
     // 2) Send (no database transaction is open while the request is in flight).

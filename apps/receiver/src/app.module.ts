@@ -17,7 +17,10 @@ export class AppModule implements OnApplicationShutdown {
         ReceiverService,
         { provide: APP_CONFIG, useValue: config },
         { provide: DB, useValue: overrides.db ?? createDb(config.DATABASE_URL, { max: 10 }) },
-        { provide: LOGGER, useValue: overrides.logger ?? createLogger('receiver', config.LOG_LEVEL) },
+        {
+          provide: LOGGER,
+          useValue: overrides.logger ?? createLogger('receiver', config.LOG_LEVEL),
+        },
       ],
     };
   }

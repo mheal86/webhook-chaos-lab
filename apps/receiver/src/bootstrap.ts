@@ -11,10 +11,13 @@ export async function createReceiverApp(
   config: AppConfig,
   overrides: { db?: Db; logger?: Logger } = {},
 ): Promise<NestExpressApplication & INestApplication> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule.register(config, overrides), {
-    bodyParser: false,
-    logger: ['error', 'warn'],
-  });
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule.register(config, overrides),
+    {
+      bodyParser: false,
+      logger: ['error', 'warn'],
+    },
+  );
   // Raw bytes for every content type: signature verification must see exactly what was sent.
   app.useBodyParser('raw', { type: () => true, limit: LIMITS.maxPayloadBytes });
   app.enableShutdownHooks();

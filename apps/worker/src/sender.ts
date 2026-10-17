@@ -74,7 +74,11 @@ export async function sendWebhook(req: SendRequest): Promise<SendObservation> {
       preview = null; // status is already known; a broken body read does not change the verdict
     }
     return {
-      result: { kind: 'http', status: res.status, retryAfterHeader: res.headers.get('retry-after') },
+      result: {
+        kind: 'http',
+        status: res.status,
+        retryAfterHeader: res.headers.get('retry-after'),
+      },
       httpStatus: res.status,
       responsePreview: preview,
       durationMs: elapsed(),
@@ -82,7 +86,12 @@ export async function sendWebhook(req: SendRequest): Promise<SendObservation> {
   } catch (err) {
     const name = (err as { name?: string })?.name;
     if (signal.aborted || name === 'TimeoutError' || name === 'AbortError') {
-      return { result: { kind: 'timeout' }, httpStatus: null, responsePreview: null, durationMs: elapsed() };
+      return {
+        result: { kind: 'timeout' },
+        httpStatus: null,
+        responsePreview: null,
+        durationMs: elapsed(),
+      };
     }
     return {
       result: { kind: 'network_error', code: networkCode(err) },
