@@ -75,8 +75,19 @@ That delivery took 31 s end to end (the max in that run; p95 stayed at 334 ms). 
 | CI workflow itself                                             | runs on GitHub only                | GitHub Actions run on push to `main`                                                                                   |
 | Killing Redis / receiver by hand during load                   | covered by automated tests instead | `recovery.int.spec.ts` (Redis down, Redis state lost, receiver restart)                                                |
 
-CI status is recorded below once a run has completed.
-
 ## CI runs
 
-_No completed run recorded yet._
+GitHub Actions, ubuntu-24.04 runners, repository `mheal86/webhook-chaos-lab`.
+
+| Run         | Commit    | Quality                                                                                                  | Integration | E2E    | Compose smoke |
+| ----------- | --------- | -------------------------------------------------------------------------------------------------------- | ----------- | ------ | ------------- |
+| 39060127301 | `a4f386d` | **failed**: `pnpm typecheck` on a clean checkout could not resolve `@lab/shared` (types live in `dist/`) | passed      | passed | passed        |
+| 39060392178 | `f1abb10` | passed                                                                                                   | passed      | passed | passed        |
+
+The first failure was a real bug hidden locally by existing `dist/` folders. Fix: the root
+`typecheck` script now builds the workspace libraries first; reproduced and verified locally by
+deleting every `dist/` before running it.
+
+The compose job is the only place the Docker setup has run: it builds both image targets, starts
+PostgreSQL, Redis, migrate, receiver, worker, api and nginx, then runs
+`scripts/compose-smoke.mjs` (healthy, fail_twice, duplicate_storm) through the nginx proxy.
