@@ -102,10 +102,11 @@ The same four runs are a step of the CI `integration` job.
 
 GitHub Actions, ubuntu-24.04 runners, repository `mheal86/webhook-chaos-lab`.
 
-| Run         | Commit    | Quality                                                                                                  | Integration | E2E    | Compose smoke |
-| ----------- | --------- | -------------------------------------------------------------------------------------------------------- | ----------- | ------ | ------------- |
-| 39060127301 | `a4f386d` | **failed**: `pnpm typecheck` on a clean checkout could not resolve `@lab/shared` (types live in `dist/`) | passed      | passed | passed        |
-| 39060392178 | `f1abb10` | passed                                                                                                   | passed      | passed | passed        |
+| Run         | Commit    | Quality                                                                                                  | Integration                              | E2E    | Compose smoke |
+| ----------- | --------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------ | ------------- |
+| 39060127301 | `a4f386d` | **failed**: `pnpm typecheck` on a clean checkout could not resolve `@lab/shared` (types live in `dist/`) | passed                                   | passed | passed        |
+| 39060392178 | `f1abb10` | passed                                                                                                   | passed                                   | passed | passed        |
+| 39060836249 | `6f3a1a3` | passed                                                                                                   | passed, plus the 4 chaos runs (all PASS) | passed | passed        |
 
 The first failure was a real bug hidden locally by existing `dist/` folders. Fix: the root
 `typecheck` script now builds the workspace libraries first; reproduced and verified locally by
