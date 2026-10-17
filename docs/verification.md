@@ -67,13 +67,36 @@ delivery that was in flight when the worker died:
 That delivery took 31 s end to end (the max in that run; p95 stayed at 334 ms). Database check:
 300 events → 300 business effects → 300 receiver requests, so no event was lost or applied twice.
 
+## Scripted chaos runs (`scripts/chaos.mjs`)
+
+`node scripts/chaos.mjs <target>` starts its own isolated stack (fresh `lab_chaos` database, its
+own Redis on :6501, api/receiver/worker on :3501-3503), sends 300 events through
+`scripts/load-test.mjs`, hard-kills the target 1 s into the load, restarts it 5 s later, then
+checks PostgreSQL. Shortened windows for the run: `LEASE_MS=6000`, `DISPATCH_GRACE_MS=5000`,
+`HTTP_TIMEOUT_HARD_CAP_MS=3000`. Run on this machine on 2026-10-18:
+
+| Target       | What happens                                    | Succeeded | Effects | Receiver requests | Attempts by outcome             | Result |
+| ------------ | ----------------------------------------------- | --------- | ------- | ----------------- | ------------------------------- | ------ |
+| `worker`     | worker SIGKILLed with attempts in flight        | 300 / 300 | 300     | 304               | `success=300 worker_lost=4`     | PASS   |
+| `receiver`   | receiver SIGKILLed, connections refused for 5 s | 300 / 300 | 300     | 303               | `success=300 network_error=651` | PASS   |
+| `redis`      | Redis SIGKILLed, restarted on its AOF data      | 300 / 300 | 300     | 300               | `success=300`                   | PASS   |
+| `redis-loss` | Redis SIGKILLed, restarted **empty**            | 300 / 300 | 300     | 300               | `success=300`                   | PASS   |
+
+How to read it: in the `worker` run 4 requests had already reached the receiver when the worker
+died. Their attempts were closed as `worker_lost` (outcome unknown at sender) after the lease
+expired, the retries were answered as duplicates, so 304 requests still produced exactly 300
+effects. In the `receiver` run, 3 requests were committed by the receiver just before it was
+killed; same outcome. In `redis-loss` the queue jobs were gone and the recovery loop re-issued the
+deliveries from PostgreSQL.
+
+The same four runs are a step of the CI `integration` job.
+
 ## Not run on this machine
 
-| Item                                                           | Why                                | Where it is verified instead                                                                                           |
-| -------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `docker compose up --build`, `Dockerfile`, `docker/nginx.conf` | Docker is not installed here       | `compose` job in `.github/workflows/ci.yml` (build images, start stack, run `scripts/compose-smoke.mjs` through nginx) |
-| CI workflow itself                                             | runs on GitHub only                | GitHub Actions run on push to `main`                                                                                   |
-| Killing Redis / receiver by hand during load                   | covered by automated tests instead | `recovery.int.spec.ts` (Redis down, Redis state lost, receiver restart)                                                |
+| Item                                                           | Why                          | Where it is verified instead                                |
+| -------------------------------------------------------------- | ---------------------------- | ----------------------------------------------------------- |
+| `docker compose up --build`, `Dockerfile`, `docker/nginx.conf` | Docker is not installed here | `compose` job on GitHub Actions: passed (see CI runs below) |
+| CI workflow itself                                             | runs on GitHub only          | GitHub Actions: passed (see CI runs below)                  |
 
 ## CI runs
 

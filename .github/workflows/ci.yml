@@ -56,6 +56,9 @@ jobs:
       # Recovery tests spawn the compiled apps as child processes so they can be SIGKILLed.
       - run: pnpm build
       - run: pnpm test:integration
+      - name: Chaos runs (kill worker, receiver, Redis, Redis with data loss mid-load)
+        run: |
+          for t in worker receiver redis redis-loss; do node scripts/chaos.mjs $t || exit 1; done
 
   e2e:
     name: Playwright e2e (full stack)

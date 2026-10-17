@@ -95,11 +95,17 @@ pnpm test:unit                   # 80 unit test (policy thuần, không cần DB
 pnpm test:integration            # 77 test với PostgreSQL + Redis thật (cần pnpm build trước)
 pnpm e2e                         # 7 bài Playwright trên stack đầy đủ
 node scripts/load-test.mjs --events 1000 --concurrency 20   # load test có giới hạn
+pnpm chaos worker                # giết worker giữa lúc tải (cũng có: receiver, redis, redis-loss)
 ```
 
 Integration test bao gồm cả các "cửa sổ sập": sập sau commit nhưng trước enqueue, Redis tắt, Redis
 mất dữ liệu queue, receiver tắt rồi bật lại, worker bị `SIGKILL` sau khi receiver đã commit, job chạy
 lại sau khi delivery đã kết thúc, hai worker tranh một delivery.
+
+`pnpm chaos <worker|receiver|redis|redis-loss>` tự dựng một stack riêng (DB `lab_chaos`, Redis
+riêng), bắn 300 event, **giết thật** thành phần được chọn ở giây thứ 1, bật lại sau 5 giây, rồi đếm
+trong PostgreSQL: mọi event đều được giao và mỗi event đúng 1 effect. Cả 4 chế độ đều pass trên máy
+local và chạy trong CI.
 
 Kết quả thực tế, máy đo và những gì **chưa** chạy được: [docs/verification.md](docs/verification.md).
 

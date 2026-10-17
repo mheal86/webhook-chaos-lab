@@ -66,19 +66,25 @@ its full history.
 
 ## 7. Kill things (2 min, local stack)
 
-Start a bounded load and kill the worker while it runs:
+One command per failure; each builds its own isolated stack, so it does not disturb the demo:
 
 ```bash
-node scripts/load-test.mjs --events 300 --concurrency 10 &
-# kill the worker process now (docker compose kill worker, or end the node process), wait ~5 s,
-# then start it again (docker compose start worker / node apps/worker/dist/main.js)
+pnpm chaos worker       # SIGKILL the worker mid-load
+pnpm chaos receiver     # SIGKILL the receiver mid-load
+pnpm chaos redis        # SIGKILL Redis, restart on its data
+pnpm chaos redis-loss   # SIGKILL Redis, restart EMPTY
 ```
 
-Expected: the load test still ends with all deliveries `succeeded`; the delivery that was in flight
-has a `worker_lost` attempt (written when its lease expired) followed by a successful attempt in
-the next generation; business effects = events. A real run of exactly this is recorded in
-[verification.md](verification.md#chaos-run-worker-killed-during-load).
+Each prints the counts from PostgreSQL and ends with `PASS: nothing lost, nothing applied twice`.
 
-Other things to kill: Redis (`docker compose stop redis`) — `POST /api/events` still returns 202 and
-the events are dispatched once Redis is back; the receiver — deliveries go to `retry_wait` and
-finish once it returns within the retry budget.
+Talking points:
+
+- `worker`: requests that reached the receiver right before the crash show up as `worker_lost`
+  attempts (unknown at sender); their retries are answered as duplicates, so receiver requests >
+  events but effects = events.
+- `receiver`: deliveries fail with `network_error`, wait in `retry_wait`, and finish when it is back.
+- `redis-loss`: the queue forgets everything; PostgreSQL does not, and the recovery loop re-issues
+  the work.
+
+Real results: [verification.md](verification.md#scripted-chaos-runs-scriptschaosmjs). With
+Docker you can do the same by hand: `docker compose kill worker`, wait, `docker compose start worker`.
