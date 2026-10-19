@@ -1,5 +1,7 @@
 # Webhook Chaos Lab
 
+[English](README.md) · Tiếng Việt
+
 Phòng thí nghiệm "gây hỏng có chủ đích" cho hệ thống gửi webhook: tạo event, cố tình làm hỏng việc
 giao (receiver trả 500, timeout sau khi đã commit, gửi trùng, sai thứ tự, sai chữ ký, worker chết,
 Redis mất dữ liệu), hiển thị **từng lần thử (attempt)** và kiểm tra hệ thống có tự phục hồi đúng
@@ -7,6 +9,13 @@ hay không.
 
 TypeScript fullstack: NestJS 11, Prisma 7 + PostgreSQL, BullMQ + Redis, React 19 + TanStack Query,
 Jest, Playwright.
+
+![Demo: chạy kịch bản “Lỗi 2 lần rồi hồi phục”, đọc kết luận, xem timeline các lần thử, chuyển sang tiếng Việt](docs/screenshots/demo.gif)
+
+Dashboard có nút chuyển **EN / VI** ở góc phải trên và tab **How it works / Cách hoạt động** giải thích
+các khái niệm bằng lời dễ hiểu. Ảnh chụp: [tổng quan (VI)](docs/screenshots/08-overview-vi.png),
+[chạy kịch bản](docs/screenshots/02-runner.png), [timeline các lần thử](docs/screenshots/04-attempt-timeline.png),
+[phía receiver](docs/screenshots/05-receiver.png), [dead letters](docs/screenshots/06-dead-letters.png).
 
 ## Ý tưởng chính trong 30 giây
 
@@ -93,7 +102,7 @@ Kịch bản demo từng bước: [docs/demo-script.md](docs/demo-script.md).
 pnpm lint && pnpm format:check && pnpm typecheck
 pnpm test:unit                   # 80 unit test (policy thuần, không cần DB)
 pnpm test:integration            # 77 test với PostgreSQL + Redis thật (cần pnpm build trước)
-pnpm e2e                         # 7 bài Playwright trên stack đầy đủ
+pnpm e2e                         # 8 bài Playwright trên stack đầy đủ
 node scripts/load-test.mjs --events 1000 --concurrency 20   # load test có giới hạn
 pnpm chaos worker                # giết worker giữa lúc tải (cũng có: receiver, redis, redis-loss)
 ```
@@ -130,22 +139,10 @@ poll của dispatcher (`DISPATCH_POLL_MS=250`).
 apps/api        NestJS API + dispatcher + recovery + scenario supervisor
 apps/worker     BullMQ worker gửi webhook
 apps/receiver   receiver fixture (HMAC, idempotency, gây lỗi)
-apps/web        dashboard React
+apps/web        dashboard React (EN / VI)
 packages/shared policy thuần: retry, backoff, HMAC, fault plan, scenario
 packages/db     Prisma schema, migrations, delivery engine
 tests/          integration test (PostgreSQL + Redis thật)
 scripts/        infra local, e2e stack, smoke test, load test
-docs/           kiến trúc, kịch bản demo, kết quả kiểm chứng
+docs/           kiến trúc, kịch bản demo, kết quả kiểm chứng, ảnh chụp
 ```
-
-## Gợi ý dòng CV
-
-- Built a fault-injection lab for webhook delivery (NestJS, PostgreSQL, BullMQ, React) with a
-  transactional outbox, lease + fencing-token claims and a recovery loop; 77 integration tests on
-  real PostgreSQL/Redis cover crash windows such as a worker SIGKILLed after the receiver committed.
-- Designed an idempotent receiver (unique key in the same transaction as the business effect) that
-  kept exactly 1 effect under a 20-way concurrent duplicate storm and with the worker killed in the
-  middle of a 300-event load.
-- Measured 1000 events end-to-end on one dev machine: 204 deliveries/s, p95 accept-to-delivered
-  370 ms, 0 lost or duplicated effects; CI runs lint, typecheck, unit, integration, Playwright e2e
-  and a docker compose smoke test.

@@ -23,6 +23,9 @@ node apps/api/dist/main.js        # terminal 4  (Swagger: http://127.0.0.1:3000/
 pnpm --filter @lab/web dev        # terminal 5  (dashboard: http://127.0.0.1:5173)
 ```
 
+Open the dashboard on **Overview**: with no run yet it explains the lab and shows the pipeline.
+**How it works** is a one-page glossary, and the **EN / VI** switch (top right) changes the language.
+
 ## 1. Healthy baseline (1 min)
 
 Scenario Runner → **Healthy** → Run. Every assertion turns green: 1 attempt per delivery, effects

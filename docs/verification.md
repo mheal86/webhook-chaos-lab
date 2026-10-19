@@ -1,7 +1,7 @@
 # Verification
 
 What was actually run, where, and with what result. Anything not run is listed as **not run**.
-Last updated: 2026-10-18.
+Last updated: 2026-10-20.
 
 ## Environment
 
@@ -20,7 +20,7 @@ Last updated: 2026-10-18.
 | Build             | `pnpm build`                                           | pass                                                                               |
 | Unit tests        | `pnpm test:unit`                                       | **80 / 80 passed** (3 suites, `@lab/shared`)                                       |
 | Integration tests | `pnpm test:integration`                                | **77 / 77 passed** (4 suites, 30 s) against real PostgreSQL + Redis                |
-| E2E               | `pnpm e2e`                                             | **7 / 7 passed** (34 s) in Chromium against the full stack                         |
+| E2E               | `pnpm e2e`                                             | **8 / 8 passed** (33 s) in Chromium against the full stack (re-run 2026-10-20)     |
 | Smoke             | `node scripts/compose-smoke.mjs http://127.0.0.1:3000` | healthy, fail_twice, duplicate_storm all `passed` (local native stack, not Docker) |
 
 Integration suites: `receiver.int.spec.ts` (signature, idempotency race with 20 concurrent
@@ -31,7 +31,8 @@ receiver restart, worker SIGKILL after receiver commit, job re-run after termina
 
 E2E specs (`apps/web/e2e/dashboard.spec.ts`): healthy run, retry timeline (500, 500, 200), timeout
 shown as unknown at sender, dead letter → replay, exhaust and replay, out-of-order projection,
-event filter and keyboard navigation.
+event filter and keyboard navigation, EN / VI language switch (added 2026-10-20 with the
+dashboard redesign).
 
 ## Load test (`scripts/load-test.mjs`)
 
