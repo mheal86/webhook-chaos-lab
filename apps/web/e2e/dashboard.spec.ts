@@ -107,3 +107,20 @@ test('events can be filtered and the keyboard can drive navigation', async ({ pa
   await page.getByLabel('Has delivery in state').selectOption('queued');
   await expect(page.getByText('No events match')).toBeVisible();
 });
+
+test('the language switch turns the dashboard into Vietnamese and remembers it', async ({
+  page,
+}) => {
+  await page.goto('/how-it-works');
+  await expect(page.getByRole('heading', { name: 'How it works' })).toBeVisible();
+  await page.getByTestId('lang-vi').click();
+  await expect(page.getByRole('heading', { name: 'Cách hoạt động' })).toBeVisible();
+  await expect(nav(page, 'Tổng quan')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Cách hoạt động' })).toBeVisible();
+
+  await page.getByTestId('lang-en').click();
+  await expect(nav(page, 'Overview')).toBeVisible();
+});

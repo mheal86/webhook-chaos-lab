@@ -14,11 +14,13 @@ import {
   inputCls,
   shortId,
 } from '../components/ui';
+import { useLang } from '../i18n';
 
 const LIMIT = 15;
 
 export function Events() {
   const { runId } = useSelectedRun();
+  const { t } = useLang();
   const [allRuns, setAllRuns] = useState(false);
   const [type, setType] = useState('');
   const [state, setState] = useState('');
@@ -43,44 +45,47 @@ export function Events() {
     <>
       <PageTitle
         title="Events"
-        subtitle="Immutable business events. One event can have several deliveries (duplicates, replays)."
+        subtitle={t(
+          'Every business event the lab sent. Click an event id to see each HTTP attempt on a timeline. One event can have several deliveries (duplicates, replays).',
+          'Mọi event nghiệp vụ mà lab đã gửi. Bấm vào id của event để xem từng lần gọi HTTP trên dòng thời gian. Một event có thể có nhiều delivery (bản trùng, bản gửi lại).',
+        )}
       />
       <Panel>
         <form
           className="grid gap-3 md:grid-cols-5"
           onSubmit={(e) => e.preventDefault()}
-          aria-label="Event filters"
+          aria-label={t('Event filters', 'Bộ lọc event')}
         >
           <label className="text-xs text-muted md:col-span-2">
-            Event id or aggregate
+            {t('Event id or aggregate', 'Id event hoặc aggregate')}
             <input
               className={`${inputCls} mt-1`}
               value={q}
               onChange={(e) => reset(setQ)(e.target.value)}
-              placeholder="uuid or text"
+              placeholder={t('uuid or text', 'uuid hoặc chữ')}
             />
           </label>
           <label className="text-xs text-muted">
-            Type
+            {t('Type', 'Loại')}
             <select
               className={`${inputCls} mt-1`}
               value={type}
               onChange={(e) => reset(setType)(e.target.value)}
             >
-              <option value="">All types</option>
-              {EVENT_TYPE_LIST.map((t) => (
-                <option key={t}>{t}</option>
+              <option value="">{t('All types', 'Tất cả loại')}</option>
+              {EVENT_TYPE_LIST.map((ty) => (
+                <option key={ty}>{ty}</option>
               ))}
             </select>
           </label>
           <label className="text-xs text-muted">
-            Has delivery in state
+            {t('Has delivery in state', 'Có delivery ở trạng thái')}
             <select
               className={`${inputCls} mt-1`}
               value={state}
               onChange={(e) => reset(setState)(e.target.value)}
             >
-              <option value="">Any</option>
+              <option value="">{t('Any', 'Bất kỳ')}</option>
               {DELIVERY_STATES.map((s) => (
                 <option key={s} value={s}>
                   {s.replace('_', ' ')}
@@ -94,7 +99,7 @@ export function Events() {
               checked={allRuns}
               onChange={(e) => reset(setAllRuns)(e.target.checked)}
             />
-            All runs
+            {t('All runs', 'Mọi lần chạy')}
           </label>
         </form>
       </Panel>
@@ -105,7 +110,10 @@ export function Events() {
         ) : !events.data ? (
           <Loading />
         ) : events.data.items.length === 0 ? (
-          <EmptyState title="No events match" hint="Run a scenario or relax the filters." />
+          <EmptyState
+            title={t('No events match', 'Không có event nào khớp')}
+            hint={t('Run a scenario or relax the filters.', 'Chạy một kịch bản hoặc nới bộ lọc.')}
+          />
         ) : (
           <>
             <div className="overflow-x-auto rounded-lg border border-line">
@@ -114,11 +122,11 @@ export function Events() {
                 <thead className="bg-panel text-xs uppercase tracking-wider text-muted">
                   <tr>
                     <th className="px-3 py-2">Event</th>
-                    <th className="px-3 py-2">Type</th>
+                    <th className="px-3 py-2">{t('Type', 'Loại')}</th>
                     <th className="px-3 py-2">Aggregate</th>
                     <th className="px-3 py-2">Seq</th>
                     <th className="px-3 py-2">Deliveries</th>
-                    <th className="px-3 py-2">Created</th>
+                    <th className="px-3 py-2">{t('Created', 'Tạo lúc')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line bg-panel/40">

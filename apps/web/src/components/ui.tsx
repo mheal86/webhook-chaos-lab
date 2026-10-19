@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ApiError } from '../api/client';
+import { useLang } from '../i18n';
 
 type Tone = 'green' | 'red' | 'amber' | 'blue' | 'gray' | 'violet';
 
@@ -45,15 +46,45 @@ const STATUS: Record<string, { tone: Tone; icon: string; label?: string }> = {
   error: { tone: 'red', icon: '✕' },
 };
 
+const STATUS_VI: Record<string, string> = {
+  succeeded: 'thành công',
+  dead: 'dead (bỏ cuộc)',
+  retry_wait: 'chờ thử lại',
+  in_flight: 'đang gửi',
+  queued: 'đang chờ',
+  success: 'thành công',
+  http_retryable: 'lỗi HTTP, sẽ thử lại',
+  http_permanent: 'lỗi HTTP vĩnh viễn',
+  network_error: 'lỗi mạng',
+  timeout: 'timeout',
+  worker_lost: 'mất worker',
+  in_progress: 'đang chạy',
+  running: 'đang chạy',
+  passed: 'đạt',
+  failed: 'không đạt',
+  pending: 'đang chờ',
+  open: 'mở',
+  received: 'đã nhận',
+  processed: 'đã xử lý',
+  duplicate: 'trùng',
+  stale: 'cũ, bỏ qua',
+  conflict: 'xung đột',
+  rejected_signature: 'chữ ký sai',
+  rejected_bad_request: 'request sai',
+  injected_failure: 'lỗi cố ý',
+  error: 'lỗi',
+};
+
 /** Status colour is always paired with an icon and a text label (not colour alone). */
 export function StatusBadge({ value }: { value: string }) {
+  const { lang } = useLang();
   const s = STATUS[value] ?? { tone: 'gray' as Tone, icon: '•' };
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TONES[s.tone]}`}
     >
       <span aria-hidden="true">{s.icon}</span>
-      {s.label ?? value.replace(/_/g, ' ')}
+      {(lang === 'vi' ? STATUS_VI[value] : undefined) ?? s.label ?? value.replace(/_/g, ' ')}
     </span>
   );
 }
@@ -102,11 +133,12 @@ export function PageTitle({
   );
 }
 
-export function Loading({ label = 'Loading…' }: { label?: string }) {
+export function Loading({ label }: { label?: string }) {
+  const { t } = useLang();
   return (
     <div role="status" className="flex items-center gap-2 py-8 text-sm text-muted">
       <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-500 border-t-transparent" />
-      {label}
+      {label ?? t('Loading…', 'Đang tải…')}
     </div>
   );
 }
@@ -121,6 +153,7 @@ export function EmptyState({ title, hint }: { title: string; hint?: ReactNode })
 }
 
 export function ErrorState({ error, retry }: { error: unknown; retry?: () => void }) {
+  const { t } = useLang();
   const msg =
     error instanceof ApiError
       ? `${error.message} (HTTP ${error.status})`
@@ -130,14 +163,14 @@ export function ErrorState({ error, retry }: { error: unknown; retry?: () => voi
       role="alert"
       className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
     >
-      <p className="font-medium">Something went wrong</p>
+      <p className="font-medium">{t('Something went wrong', 'Đã có lỗi xảy ra')}</p>
       <p className="mt-1 break-words">{msg}</p>
       {retry && (
         <button
           className="mt-2 rounded border border-rose-400/50 px-2 py-1 text-xs hover:bg-rose-500/20"
           onClick={retry}
         >
-          Retry
+          {t('Retry', 'Thử lại')}
         </button>
       )}
     </div>
@@ -145,11 +178,14 @@ export function ErrorState({ error, retry }: { error: unknown; retry?: () => voi
 }
 
 export function Stat({
+  id,
   label,
   value,
   hint,
   tone,
 }: {
+  /** Stable test id (labels are translated); defaults to the label. */
+  id?: string;
   label: string;
   value: ReactNode;
   hint?: ReactNode;
@@ -158,7 +194,7 @@ export function Stat({
   return (
     <div
       className="rounded-lg border border-line bg-panel p-4"
-      data-testid={`stat-${label.toLowerCase().replace(/\W+/g, '-')}`}
+      data-testid={`stat-${(id ?? label).toLowerCase().replace(/\W+/g, '-')}`}
     >
       <div className="text-xs uppercase tracking-wider text-muted">{label}</div>
       <div
@@ -189,6 +225,7 @@ export function Pager({
   offset: number;
   onChange: (offset: number) => void;
 }) {
+  const { t } = useLang();
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(total, offset + limit);
   return (
@@ -197,7 +234,7 @@ export function Pager({
       className="mt-3 flex items-center justify-between text-sm text-muted"
     >
       <span>
-        {from}–{to} of {total}
+        {from}–{to} {t('of', '/')} {total}
       </span>
       <span className="flex gap-2">
         <button
@@ -205,14 +242,14 @@ export function Pager({
           disabled={offset === 0}
           onClick={() => onChange(Math.max(0, offset - limit))}
         >
-          Previous
+          {t('Previous', 'Trước')}
         </button>
         <button
           className={btn}
           disabled={offset + limit >= total}
           onClick={() => onChange(offset + limit)}
         >
-          Next
+          {t('Next', 'Sau')}
         </button>
       </span>
     </nav>

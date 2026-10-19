@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDeadLetters, useReplay, useSelectedRun } from '../api/hooks';
 import { AttemptTimeline } from '../components/AttemptTimeline';
+import { AttemptStrip } from '../components/explain';
 import {
   EmptyState,
   ErrorState,
@@ -14,6 +15,7 @@ import {
   fmtDateTime,
   shortId,
 } from '../components/ui';
+import { useLang } from '../i18n';
 
 const LIMIT = 10;
 
@@ -23,12 +25,16 @@ export function DeadLetters() {
   const [offset, setOffset] = useState(0);
   const dead = useDeadLetters({ runId: allRuns ? undefined : runId, limit: LIMIT, offset });
   const replay = useReplay();
+  const { t } = useLang();
 
   return (
     <>
       <PageTitle
         title="Dead Letters"
-        subtitle="Deliveries that spent their retry budget or hit a permanent error. Replay creates a new delivery for the same event and payload; the dead delivery keeps its full history. Dead at the sender does not prove the receiver never processed the event."
+        subtitle={t(
+          'Deliveries the system gave up on: out of retries, or rejected for good (e.g. a bad signature). Replay sends the same event again as a new delivery; the dead one keeps its full history. “Dead” at the sender does not prove the receiver never processed it.',
+          'Những delivery hệ thống đã bỏ cuộc: hết lượt thử, hoặc bị từ chối vĩnh viễn (ví dụ sai chữ ký). Nút Gửi lại (Replay) gửi lại cùng event dưới dạng một delivery mới; delivery dead vẫn giữ nguyên lịch sử. “Dead” ở phía gửi không chứng minh receiver chưa từng xử lý nó.',
+        )}
         actions={
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
@@ -39,7 +45,7 @@ export function DeadLetters() {
                 setOffset(0);
               }}
             />
-            All runs
+            {t('All runs', 'Mọi lần chạy')}
           </label>
         }
       />
@@ -50,7 +56,8 @@ export function DeadLetters() {
       )}
       {replay.isSuccess && (
         <p role="status" className="mb-3 text-sm text-emerald-300" data-testid="replay-created">
-          Replay created: delivery {shortId(replay.data.deliveryId)} (replay of{' '}
+          {t('Replay created: delivery', 'Đã tạo bản gửi lại: delivery')}{' '}
+          {shortId(replay.data.deliveryId)} ({t('replay of', 'gửi lại từ')}{' '}
           {shortId(replay.data.replayOfDeliveryId)}).
         </p>
       )}
@@ -61,8 +68,11 @@ export function DeadLetters() {
         <Loading />
       ) : dead.data.items.length === 0 ? (
         <EmptyState
-          title="No dead letters"
-          hint="Run “Exhaust retries and replay” or “Invalid signature” to produce some."
+          title={t('No dead letters', 'Không có dead letter nào')}
+          hint={t(
+            'Run “Exhaust retries and replay” or “Invalid signature” to produce some.',
+            'Chạy kịch bản “Hết lượt thử rồi gửi lại” hoặc “Chữ ký sai” để tạo ra.',
+          )}
         />
       ) : (
         <>
@@ -89,7 +99,9 @@ export function DeadLetters() {
                     onClick={() => replay.mutate(d.id)}
                     data-testid={`replay-${shortId(d.id)}`}
                   >
-                    {d.activeReplays > 0 ? 'Replay in progress' : 'Replay'}
+                    {d.activeReplays > 0
+                      ? t('Replay in progress', 'Đang gửi lại')
+                      : t('Replay', 'Gửi lại')}
                   </button>
                 }
               >
@@ -99,27 +111,31 @@ export function DeadLetters() {
                     <dd className="font-mono">{shortId(d.id)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted">Reason</dt>
+                    <dt className="text-xs text-muted">{t('Reason', 'Lý do')}</dt>
                     <dd className="font-mono text-rose-300">{d.terminalReason ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted">Last error</dt>
+                    <dt className="text-xs text-muted">{t('Last error', 'Lỗi gần nhất')}</dt>
                     <dd className="font-mono text-amber-300">{d.lastErrorCode ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted">Attempts</dt>
+                    <dt className="text-xs text-muted">{t('Attempts', 'Số lần thử')}</dt>
                     <dd className="font-mono">
                       {d.attemptCount}/{d.maxAttempts}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted">Replays so far</dt>
+                    <dt className="text-xs text-muted">{t('Replays so far', 'Đã gửi lại')}</dt>
                     <dd className="font-mono">{d.replayCount}</dd>
                   </div>
                 </dl>
+                <div className="mb-3">
+                  <AttemptStrip attempts={d.attempts} />
+                </div>
                 <details>
                   <summary className="cursor-pointer text-sm text-sky-300">
-                    Attempt history ({d.attempts.length}) · died {fmtDateTime(d.finishedAt)}
+                    {t('Attempt history', 'Lịch sử các lần thử')} ({d.attempts.length}) ·{' '}
+                    {t('died', 'dead lúc')} {fmtDateTime(d.finishedAt)}
                   </summary>
                   <div className="mt-3">
                     <AttemptTimeline attempts={d.attempts} />
