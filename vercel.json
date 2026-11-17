@@ -3,7 +3,5 @@
   "buildCommand": "pnpm --filter @lab/shared build && pnpm --filter @lab/web build",
   "outputDirectory": "apps/web/dist",
   "installCommand": "pnpm install --no-frozen-lockfile",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

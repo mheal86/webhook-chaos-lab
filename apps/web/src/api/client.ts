@@ -86,10 +86,21 @@ export interface EventsQuery {
 }
 
 export const api = {
-  runs: () => withFallback(() => request<RunListItem[]>('/runs'), () => demoApi.runs()),
-  run: (id: string) => withFallback(() => request<RunDto>(`/runs/${id}`), () => demoApi.run(id)),
+  runs: () =>
+    withFallback(
+      () => request<RunListItem[]>('/runs'),
+      () => demoApi.runs(),
+    ),
+  run: (id: string) =>
+    withFallback(
+      () => request<RunDto>(`/runs/${id}`),
+      () => demoApi.run(id),
+    ),
   metrics: (id: string) =>
-    withFallback(() => request<RunMetrics>(`/runs/${id}/metrics`), () => demoApi.metrics(id)),
+    withFallback(
+      () => request<RunMetrics>(`/runs/${id}/metrics`),
+      () => demoApi.metrics(id),
+    ),
   scenarios: () =>
     withFallback(
       () => request<{ defaultConfig: RunConfig; scenarios: ScenarioCatalogEntry[] }>('/scenarios'),
@@ -110,7 +121,10 @@ export const api = {
       () => demoApi.events(q),
     ),
   event: (id: string) =>
-    withFallback(() => request<EventDetail>(`/events/${id}`), () => demoApi.event(id)),
+    withFallback(
+      () => request<EventDetail>(`/events/${id}`),
+      () => demoApi.event(id),
+    ),
   deadLetters: (q: { runId?: string; limit?: number; offset?: number }) =>
     withFallback(
       () => request<Paginated<DeadLetterItem>>(`/dead-letters${qs(q)}`),

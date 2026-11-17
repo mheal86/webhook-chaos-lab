@@ -24,11 +24,11 @@ function RunSelector() {
   const title = (type: string) =>
     stories.title(type, scenarios.data?.scenarios.find((s) => s.type === type)?.title ?? type);
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <span className="text-muted">{t('Run', 'Lần chạy')}</span>
+    <label className="flex min-w-0 items-center gap-2 text-sm">
+      <span className="shrink-0 text-muted">{t('Run', 'Lần chạy')}</span>
       <select
         aria-label={t('Selected run', 'Lần chạy đang xem')}
-        className="max-w-[22rem] rounded-md border border-line bg-bg px-2 py-1.5 text-slate-100"
+        className="w-full max-w-[26rem] truncate rounded-md border border-line bg-bg px-2.5 py-1.5 text-slate-100 sm:w-auto"
         value={runId ?? ''}
         onChange={(e) => setRunId(e.target.value)}
         disabled={!runs.data?.length}
@@ -36,8 +36,8 @@ function RunSelector() {
         {!runs.data?.length && <option value="">{t('No runs yet', 'Chưa có lần chạy')}</option>}
         {runs.data?.map((r) => (
           <option key={r.id} value={r.id}>
-            {STATUS_MARK[r.status] ?? '○'} {stories.story(r.type)?.icon ?? ''} {title(r.type)} ·{' '}
-            {fmtDateTime(r.createdAt)} · {shortId(r.id)}
+            {STATUS_MARK[r.status] ?? '○'} {stories.story(r.type)?.icon ?? ''} {title(r.type)} (
+            {shortId(r.id)}) · {fmtDateTime(r.createdAt)}
           </option>
         ))}
       </select>

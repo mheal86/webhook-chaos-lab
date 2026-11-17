@@ -1,5 +1,13 @@
-import { Link } from 'react-router-dom';
-import { useMetrics, useRun, useRuns, useScenarios, useSelectedRun } from '../api/hooks';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  useCreateRun,
+  useMetrics,
+  useRun,
+  useRuns,
+  useScenarios,
+  useSelectedRun,
+} from '../api/hooks';
 import { AssertionsTable } from '../components/Assertions';
 import { PipelineDiagram, VerdictBanner, useStories } from '../components/explain';
 import {
@@ -9,6 +17,7 @@ import {
   Panel,
   Stat,
   StatusBadge,
+  btn,
   btnPrimary,
   fmtDateTime,
   shortId,
@@ -87,6 +96,191 @@ function Welcome() {
   );
 }
 
+function QuickTourBanner({ currentType }: { currentType?: string }) {
+  const runs = useRuns();
+  const create = useCreateRun();
+  const { setRunId } = useSelectedRun();
+  const navigate = useNavigate();
+  const { t } = useLang();
+  const [collapsed, setCollapsed] = useState(false);
+
+  const openScenario = async (scenarioType: string, goTo?: string) => {
+    const existing = runs.data?.find((r) => r.type === scenarioType);
+    if (existing) {
+      setRunId(existing.id);
+    } else {
+      await create.mutateAsync({ type: scenarioType });
+    }
+    if (goTo) navigate(goTo);
+  };
+
+  if (collapsed) {
+    return (
+      <div className="mb-4 flex items-center justify-between rounded-lg border border-sky-500/30 bg-sky-500/5 px-4 py-2 text-xs text-slate-300">
+        <span>
+          {t(
+            'New to Webhook Chaos Lab? Open the 30-second guided tour.',
+            'Lần đầu xem Webhook Chaos Lab? Mở hướng dẫn trải nghiệm nhanh 30 giây.',
+          )}
+        </span>
+        <button
+          type="button"
+          className="font-semibold text-sky-300 hover:underline"
+          onClick={() => setCollapsed(false)}
+        >
+          {t('Show guide', 'Hiện hướng dẫn')}
+        </button>
+      </div>
+    );
+  }
+
+  const tours: Array<{
+    step: string;
+    scenario: string;
+    goTo?: string;
+    title: string;
+    desc: string;
+    takeaway: string;
+  }> = [
+    {
+      step: '1',
+      scenario: 'fail_twice',
+      title: t('Auto-recover after crash', 'Tự phục hồi khi server lỗi 2 lần'),
+      desc: t(
+        'Receiver crashes twice (HTTP 500); worker retries with backoff and succeeds on try #3.',
+        'Server nhận lỗi 2 lần (HTTP 500); worker tự chờ giãn cách rồi thử lại và thành công ở lần 3.',
+      ),
+      takeaway: t(
+        'Watch below: ⚡ fault on Receiver → 3 HTTP tries, 1 effect.',
+        'Xem bên dưới: ⚡ lỗi ở Receiver → 3 lần gọi HTTP, đúng 1 effect.',
+      ),
+    },
+    {
+      step: '2',
+      scenario: 'duplicate_storm',
+      title: t('Block 20× duplicate storm', 'Chặn bão gửi trùng 20 lần'),
+      desc: t(
+        'Same payment arrives 20 times at once — idempotency applies it once, ignores 19 duplicates.',
+        'Cùng 1 sự kiện bắn tới 20 lần — idempotency chỉ xử lý 1 lần, bỏ qua 19 bản trùng.',
+      ),
+      takeaway: t(
+        'Watch below: 20 requests received → only 1 business effect.',
+        'Xem bên dưới: 20 request tới receiver → chỉ đúng 1 business effect.',
+      ),
+    },
+    {
+      step: '3',
+      scenario: 'exhaust_and_replay',
+      goTo: '/dead-letters',
+      title: t('Inspect Dead Letter & Replay', 'Xem Dead Letter & bấm thử Replay'),
+      desc: t(
+        'Retries run out → full error history saved in Dead Letters. Jump there & click Replay.',
+        'Hết lượt thử → lưu toàn bộ lịch sử vào Dead Letters. Mở thẳng tab đó và bấm thử Replay.',
+      ),
+      takeaway: t(
+        'Opens Dead Letters directly with error history + Replay button.',
+        'Mở thẳng sang trang Dead Letters với lịch sử lỗi và nút Gửi lại.',
+      ),
+    },
+  ];
+
+  return (
+    <section
+      aria-label={t('30-second guided tour', 'Hướng dẫn trải nghiệm nhanh 30 giây')}
+      className="mb-6 rounded-xl border border-sky-500/40 bg-gradient-to-br from-panel via-panel to-panel-2 p-4 md:p-5"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-4xl">
+          <p className="text-xs font-semibold uppercase tracking-widest text-sky-300">
+            {t('New here? 30-second guided demo', 'Lần đầu xem? Trải nghiệm nhanh trong 30 giây')}
+          </p>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-200">
+            {t(
+              <>
+                Imagine a <b>Payment Gateway</b> notifying an <b>ERP / Order system</b> via HTTP (a
+                webhook). If the network drops, servers return errors, or retries fire 20 times at
+                once, how do we prove <b>zero lost orders</b> and <b>zero double-processing</b>?
+                Pick a step below — sample chaos runs are already loaded:
+              </>,
+              <>
+                Hãy hình dung <b>Cổng thanh toán</b> gửi thông báo đơn hàng sang{' '}
+                <b>Hệ thống ERP / Kho</b> qua HTTP (webhook). Nếu mạng rớt, server sập, hoặc request
+                bị gửi trùng 20 lần — làm sao chứng minh <b>không mất đơn</b> và{' '}
+                <b>không xử lý trùng 2 lần</b>? Bấm 1 trong 3 kịch bản mẫu bên dưới để kiểm chứng:
+              </>,
+            )}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="text-xs text-muted hover:text-white"
+          onClick={() => setCollapsed(true)}
+        >
+          {t('Hide guide', 'Ẩn hướng dẫn')}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        {tours.map((item) => {
+          const active = currentType === item.scenario && !item.goTo;
+          return (
+            <button
+              key={item.scenario}
+              type="button"
+              disabled={create.isPending}
+              onClick={() => void openScenario(item.scenario, item.goTo)}
+              className={`group flex flex-col justify-between rounded-lg border p-3.5 text-left transition-colors ${
+                active
+                  ? 'border-sky-400 bg-sky-500/15'
+                  : 'border-line bg-bg/60 hover:border-sky-500/60 hover:bg-panel-2'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-white">
+                    {item.step}
+                  </span>
+                  <span className="text-xs font-semibold text-sky-300 group-hover:underline">
+                    {item.goTo
+                      ? t('Open Dead Letters →', 'Mở Dead Letters →')
+                      : active
+                        ? t('Viewing below ✓', 'Đang xem bên dưới ✓')
+                        : t('Load below →', 'Xem kết quả →')}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm font-semibold text-white">{item.title}</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-300">{item.desc}</p>
+              </div>
+              <p className="mt-2.5 border-t border-line/70 pt-2 text-[11px] text-emerald-300">
+                {item.takeaway}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-3.5 flex flex-wrap items-center gap-3 text-xs">
+        <Link to="/runner" className={btn}>
+          ▶{' '}
+          {t(
+            'Simulate live fault in Scenario Runner →',
+            'Tự bấm chạy mô phỏng ở Scenario Runner →',
+          )}
+        </Link>
+        <Link to="/events" className="text-sky-300 hover:underline">
+          {t(
+            'Inspect HTTP attempt timeline (Events) →',
+            'Xem dòng thời gian từng lần thử (Events) →',
+          )}
+        </Link>
+        <Link to="/how-it-works" className="text-sky-300 hover:underline">
+          {t('5-min architecture explainer →', 'Giải thích kiến trúc (đọc 5 phút) →')}
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 export function Overview() {
   const { runId } = useSelectedRun();
   const run = useRun(runId);
@@ -116,6 +310,7 @@ export function Overview() {
 
   return (
     <>
+      <QuickTourBanner currentType={r?.type} />
       <PageTitle
         title={t('Overview', 'Tổng quan')}
         subtitle={t(

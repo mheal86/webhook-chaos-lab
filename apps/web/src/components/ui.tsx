@@ -143,11 +143,20 @@ export function Loading({ label }: { label?: string }) {
   );
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: ReactNode }) {
+export function EmptyState({
+  title,
+  hint,
+  actions,
+}: {
+  title: string;
+  hint?: ReactNode;
+  actions?: ReactNode;
+}) {
   return (
     <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center">
       <p className="font-medium text-slate-200">{title}</p>
       {hint && <p className="mt-1 text-sm text-muted">{hint}</p>}
+      {actions && <div className="mt-4 flex flex-wrap justify-center gap-2">{actions}</div>}
     </div>
   );
 }

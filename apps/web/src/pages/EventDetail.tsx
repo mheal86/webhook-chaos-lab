@@ -53,14 +53,14 @@ export function EventDetailPage() {
       <Hint>
         {t(
           <>
-            An <b>event</b> is the fact itself (left). Each <b>delivery</b> is one plan to send it
-            to the receiver, and each <b>attempt</b> is one real HTTP call. A delivery keeps trying
-            until it gets a 2xx or runs out of attempts.
+            An <b>event</b> is the fact itself (shown in the Payload panel). Each <b>delivery</b> is
+            one plan to send it to the receiver, and each <b>attempt</b> is one real HTTP call. A
+            delivery keeps trying until it gets a 2xx or runs out of attempts.
           </>,
           <>
-            <b>Event</b> là bản thân sự kiện (bên trái). Mỗi <b>delivery</b> là một lần “định gửi”
-            event đó tới receiver, còn mỗi <b>attempt</b> (lần thử) là một HTTP call thật. Delivery
-            sẽ thử tiếp cho tới khi nhận 2xx hoặc hết lượt.
+            <b>Event</b> là bản thân sự kiện (hiển thị trong khung Payload). Mỗi <b>delivery</b> là
+            một lần “định gửi” event đó tới receiver, còn mỗi <b>attempt</b> (lần thử) là một HTTP
+            call thật. Delivery sẽ thử tiếp cho tới khi nhận 2xx hoặc hết lượt.
           </>,
         )}
       </Hint>

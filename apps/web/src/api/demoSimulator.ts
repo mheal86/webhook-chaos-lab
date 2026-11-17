@@ -30,7 +30,21 @@ interface SimulatedRunData {
 }
 
 const store = new Map<string, SimulatedRunData>();
-let runCounter = 100;
+let runCounter = 0;
+let replayCounter = 0;
+
+const SCENARIO_TAG: Record<ScenarioType, string> = {
+  healthy: 'hlth',
+  fail_twice: 'fail',
+  duplicate_storm: 'dupl',
+  timeout_after_commit: 'tmou',
+  out_of_order: 'ooos',
+  exhaust_and_replay: 'exha',
+  invalid_signature: 'sign',
+};
+
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+const code2 = (n: number): string => (n < 100 ? pad2(n) : n.toString(36));
 
 function getByPath(obj: unknown, path: string): number | string | null {
   const parts = path.split('.');
@@ -49,7 +63,12 @@ function buildSimulatedRun(
   createdAtOffsetMs = 0,
 ): SimulatedRunData {
   runCounter += 1;
-  const runId = `run-${type.replace(/_/g, '-')}-${runCounter}`;
+  const runCode = code2(runCounter);
+  const tag = SCENARIO_TAG[type] ?? 'scen';
+  const runId = `rn${runCode}-${tag}-demo`;
+  const makeEvId = (evIdx: number) => `ev${code2(evIdx)}-r${runCode}-${tag}`;
+  const makeDelId = (evIdx: number, ord: number) =>
+    `dl${code2(ord)}${evIdx.toString(36)}-${runCode}-${tag}`;
   const bp = buildBlueprint(type, seed, customConfig);
   const cfg = bp.config;
   const n = cfg.eventCount;
@@ -98,9 +117,9 @@ function buildSimulatedRun(
       { seq: 2, status: 'paid' },
     ];
     seqs.forEach((item, idx) => {
-      const evId = `${runId}-ev-${idx + 1}`;
-      const delId = `${runId}-del-${idx + 1}`;
-      const attId = `${runId}-att-${idx + 1}-1`;
+      const evId = makeEvId(idx + 1);
+      const delId = makeDelId(idx + 1, 1);
+      const attId = `${delId}-att-1`;
       const t0 = idx * 400;
       totalDeliveries += 1;
       succeededDeliveries += 1;
@@ -151,7 +170,10 @@ function buildSimulatedRun(
         httpStatus: 200,
         errorCode: null,
         durationMs: 42,
-        responsePreview: JSON.stringify({ status: isFirst ? 'processed' : 'stale_ignored', currentSeq: 3 }),
+        responsePreview: JSON.stringify({
+          status: isFirst ? 'processed' : 'stale_ignored',
+          currentSeq: 3,
+        }),
         retryAfterApplied: false,
         scheduledRetryAt: null,
         lateResult: null,
@@ -188,20 +210,24 @@ function buildSimulatedRun(
         payloadHash: `sha256:9f8e7d0${item.seq}`,
         deliveryCount: 1,
         deliveryStates: { succeeded: 1 },
-        rawPayload: JSON.stringify({
-          eventId: evId,
-          type: EVENT_TYPES.orderSnapshot,
-          aggregateId: 'order-1001',
-          sequence: item.seq,
-          data: { orderId: 'order-1001', status: item.status, totalCents: 1500 * item.seq },
-        }, null, 2),
+        rawPayload: JSON.stringify(
+          {
+            eventId: evId,
+            type: EVENT_TYPES.orderSnapshot,
+            aggregateId: 'order-1001',
+            sequence: item.seq,
+            data: { orderId: 'order-1001', status: item.status, totalCents: 1500 * item.seq },
+          },
+          null,
+          2,
+        ),
         correlationId: `corr-${runId}-${idx + 1}`,
         deliveries: [delivery],
       });
     });
   } else if (type === 'duplicate_storm') {
     const d = cfg.duplicateCount;
-    const evId = `${runId}-ev-1`;
+    const evId = makeEvId(1);
     const deliveries: Array<DeliveryDto & { attempts: AttemptDto[] }> = [];
     totalDeliveries = d;
     succeededDeliveries = d;
@@ -219,7 +245,7 @@ function buildSimulatedRun(
     });
 
     for (let i = 1; i <= d; i++) {
-      const delId = `${runId}-del-${i}`;
+      const delId = makeDelId(1, i);
       const isWinner = i === 1;
       reqSeq += 1;
       receiveOrderList.push(1);
@@ -272,7 +298,9 @@ function buildSimulatedRun(
             httpStatus: 200,
             errorCode: null,
             durationMs: 28,
-            responsePreview: JSON.stringify({ status: isWinner ? 'processed' : 'duplicate_ignored' }),
+            responsePreview: JSON.stringify({
+              status: isWinner ? 'processed' : 'duplicate_ignored',
+            }),
             retryAfterApplied: false,
             scheduledRetryAt: null,
             lateResult: null,
@@ -292,20 +320,24 @@ function buildSimulatedRun(
       payloadHash: 'sha256:dupstorm01',
       deliveryCount: d,
       deliveryStates: { succeeded: d },
-      rawPayload: JSON.stringify({
-        eventId: evId,
-        type: EVENT_TYPES.counterIncrement,
-        aggregateId: 'counter-demo',
-        sequence: 1,
-        data: { delta: 1 },
-      }, null, 2),
+      rawPayload: JSON.stringify(
+        {
+          eventId: evId,
+          type: EVENT_TYPES.counterIncrement,
+          aggregateId: 'counter-demo',
+          sequence: 1,
+          data: { delta: 1 },
+        },
+        null,
+        2,
+      ),
       correlationId: `corr-${runId}-1`,
       deliveries,
     });
   } else {
     for (let i = 1; i <= n; i++) {
-      const evId = `${runId}-ev-${i}`;
-      const delId = `${runId}-del-${i}`;
+      const evId = makeEvId(i);
+      const delId = makeDelId(i, 1);
       const t0 = (i - 1) * 500;
       const deliveries: Array<DeliveryDto & { attempts: AttemptDto[] }> = [];
 
@@ -421,7 +453,9 @@ function buildSimulatedRun(
             httpStatus: ok ? 200 : 500,
             errorCode: ok ? null : 'HTTP_500',
             durationMs: 45,
-            responsePreview: ok ? '{"status":"processed"}' : '{"error":"Injected 500 fault before commit"}',
+            responsePreview: ok
+              ? '{"status":"processed"}'
+              : '{"error":"Injected 500 fault before commit"}',
             retryAfterApplied: false,
             scheduledRetryAt: ok ? null : iso(t0 + (a + 1) * 1200 - 10),
             lateResult: null,
@@ -496,7 +530,8 @@ function buildSimulatedRun(
           completedAt: iso(t0 + 2530),
           result: 'duplicate',
           httpStatus: 200,
-          detail: 'Idempotency key already committed on attempt 1 -> returned 200 duplicate without re-applying',
+          detail:
+            'Idempotency key already committed on attempt 1 -> returned 200 duplicate without re-applying',
           signatureValid: true,
           eventSequence: i,
         });
@@ -616,7 +651,8 @@ function buildSimulatedRun(
           });
         }
 
-        const replayDelId = `${delId}-replay-1`;
+        replayCounter += 1;
+        const replayDelId = `rp02-${replayCounter.toString(36).padStart(3, '0')}-${delId}`;
         const replayTime = t0 + (cfg.maxAttempts + 1) * 800;
         reqSeq += 1;
         receiveOrderList.push(i);
@@ -725,7 +761,8 @@ function buildSimulatedRun(
           completedAt: iso(t0 + 30),
           result: 'rejected_signature',
           httpStatus: 401,
-          detail: 'HMAC-SHA256 signature mismatch (401 Unauthorized) -> rejected before business logic',
+          detail:
+            'HMAC-SHA256 signature mismatch (401 Unauthorized) -> rejected before business logic',
           signatureValid: false,
           eventSequence: i,
         });
@@ -786,13 +823,17 @@ function buildSimulatedRun(
         payloadHash: `sha256:8a4b2c0${i}`,
         deliveryCount: deliveries.length,
         deliveryStates: statesCount,
-        rawPayload: JSON.stringify({
-          eventId: evId,
-          type: EVENT_TYPES.counterIncrement,
-          aggregateId: 'counter-demo',
-          sequence: i,
-          data: { delta: 1 },
-        }, null, 2),
+        rawPayload: JSON.stringify(
+          {
+            eventId: evId,
+            type: EVENT_TYPES.counterIncrement,
+            aggregateId: 'counter-demo',
+            sequence: i,
+            data: { delta: 1 },
+          },
+          null,
+          2,
+        ),
         correlationId: `corr-${runId}-${i}`,
         deliveries,
       });
@@ -876,7 +917,7 @@ function buildSimulatedRun(
 
   const receiver: ReceiverStateDto = {
     runId,
-    requests,
+    requests: [...requests].reverse(),
     counter:
       type === 'out_of_order'
         ? null
@@ -964,10 +1005,18 @@ export const demoApi = {
 
   events: async (q: EventsQuery): Promise<Paginated<EventSummary>> => {
     ensureInitialized();
-    const runData = q.runId ? store.get(q.runId) : Array.from(store.values()).pop();
-    let list: EventSummary[] = runData ? runData.events : [];
+    let list: EventSummary[] = q.runId
+      ? (store.get(q.runId)?.events ?? [])
+      : Array.from(store.values())
+          .reverse()
+          .flatMap((s) => s.events);
+    if (q.type) {
+      list = list.filter((e) => e.type === q.type);
+    }
     if (q.state) {
-      list = list.filter((e) => (e.deliveryStates[q.state as keyof typeof e.deliveryStates] ?? 0) > 0);
+      list = list.filter(
+        (e) => (e.deliveryStates[q.state as keyof typeof e.deliveryStates] ?? 0) > 0,
+      );
     }
     if (q.q) {
       const search = q.q.toLowerCase();
@@ -1039,7 +1088,9 @@ export const demoApi = {
       for (const ev of sim.events) {
         const orig = ev.deliveries.find((d) => d.id === deliveryId);
         if (orig) {
-          const newDelId = `${orig.id}-replay-${ev.deliveries.length}`;
+          replayCounter += 1;
+          const nextOrd = ev.deliveries.length + 1;
+          const newDelId = `rp${code2(nextOrd)}-${replayCounter.toString(36).padStart(3, '0')}-${orig.id}`;
           const nowIso = new Date().toISOString();
           ev.deliveries.push({
             id: newDelId,
@@ -1048,7 +1099,7 @@ export const demoApi = {
             endpointId: orig.endpointId,
             consumerId: orig.consumerId,
             replayOfDeliveryId: orig.id,
-            ordinal: ev.deliveries.length + 1,
+            ordinal: nextOrd,
             state: 'succeeded',
             attemptCount: 1,
             maxAttempts: orig.maxAttempts,
@@ -1084,6 +1135,48 @@ export const demoApi = {
           sim.metrics.deliveries.total += 1;
           sim.metrics.deliveries.succeeded += 1;
           sim.metrics.lineage.replayDeliveries += 1;
+          const alreadySucceeded = ev.deliveries.some(
+            (d) => d.state === 'succeeded' && d.id !== newDelId,
+          );
+          const nextSeq = sim.receiver.requests.reduce((mx, r) => Math.max(mx, r.seq), 0) + 1;
+          sim.receiver.requests.unshift({
+            id: `${sim.run.id}-req-${nextSeq}`,
+            seq: nextSeq,
+            runId: sim.run.id,
+            consumerId: 'receiver-fixture',
+            eventId: ev.id,
+            deliveryId: newDelId,
+            attemptNo: 1,
+            receivedAt: nowIso,
+            completedAt: nowIso,
+            result: alreadySucceeded ? 'duplicate' : 'processed',
+            httpStatus: 200,
+            detail: alreadySucceeded
+              ? 'Manual replay reached receiver: idempotency key already committed -> duplicate ignored safely'
+              : 'Manual replay succeeded and committed business effect',
+            signatureValid: true,
+            eventSequence: ev.sequence,
+          });
+          sim.metrics.receiver.requests += 1;
+          if (alreadySucceeded) {
+            sim.metrics.receiver.byResult.duplicate += 1;
+            sim.receiver.summary.byResult.duplicate += 1;
+          } else {
+            sim.metrics.receiver.byResult.processed += 1;
+            sim.receiver.summary.byResult.processed += 1;
+            sim.metrics.businessEffects += 1;
+            sim.receiver.summary.businessEffects += 1;
+            const nextVal = sim.receiver.effects.length + 1;
+            sim.receiver.effects.push({
+              id: `${sim.run.id}-eff-${nextVal}`,
+              eventId: ev.id,
+              kind: 'counter.increment',
+              data: { aggregateId: 'counter-demo', delta: 1, newValue: nextVal },
+              createdAt: nowIso,
+            });
+            if (sim.receiver.counter) sim.receiver.counter.value = nextVal;
+          }
+          sim.receiver.summary.requests += 1;
           return { deliveryId: newDelId, replayOfDeliveryId: orig.id, eventId: ev.id };
         }
       }

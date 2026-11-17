@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useDeadLetters, useReplay, useSelectedRun } from '../api/hooks';
+import { useDeadLetters, useReplay, useRuns, useSelectedRun } from '../api/hooks';
 import { AttemptTimeline } from '../components/AttemptTimeline';
 import { AttemptStrip } from '../components/explain';
 import {
@@ -12,6 +12,7 @@ import {
   Panel,
   StatusBadge,
   btn,
+  btnPrimary,
   fmtDateTime,
   shortId,
 } from '../components/ui';
@@ -20,12 +21,17 @@ import { useLang } from '../i18n';
 const LIMIT = 10;
 
 export function DeadLetters() {
-  const { runId } = useSelectedRun();
+  const { runId, setRunId } = useSelectedRun();
+  const runs = useRuns();
   const [allRuns, setAllRuns] = useState(false);
   const [offset, setOffset] = useState(0);
   const dead = useDeadLetters({ runId: allRuns ? undefined : runId, limit: LIMIT, offset });
   const replay = useReplay();
   const { t } = useLang();
+
+  const deadSampleRun =
+    runs.data?.find((r) => r.type === 'exhaust_and_replay') ??
+    runs.data?.find((r) => r.type === 'invalid_signature');
 
   return (
     <>
@@ -68,11 +74,48 @@ export function DeadLetters() {
         <Loading />
       ) : dead.data.items.length === 0 ? (
         <EmptyState
-          title={t('No dead letters', 'Không có dead letter nào')}
-          hint={t(
-            'Run “Exhaust retries and replay” or “Invalid signature” to produce some.',
-            'Chạy kịch bản “Hết lượt thử rồi gửi lại” hoặc “Chữ ký sai” để tạo ra.',
+          title={t(
+            'No dead letters in the selected run',
+            'Lần chạy đang chọn không có dead letter nào',
           )}
+          hint={t(
+            'Only permanent failures or exhausted retries create dead letters. Switch to an “Exhaust retries” run or view all runs below to inspect and test Replay.',
+            'Chỉ lỗi vĩnh viễn hoặc kịch bản hết lượt thử mới tạo dead letter. Hãy chuyển sang kịch bản “Hết lượt thử rồi gửi lại” hoặc xem tất cả các lần chạy bên dưới để bấm thử Replay.',
+          )}
+          actions={
+            <>
+              {!allRuns && deadSampleRun && (
+                <button
+                  type="button"
+                  className={btnPrimary}
+                  onClick={() => {
+                    setRunId(deadSampleRun.id);
+                    setOffset(0);
+                  }}
+                >
+                  {t(
+                    'Load “Exhaust retries & replay” sample →',
+                    'Mở mẫu “Hết lượt thử rồi gửi lại” →',
+                  )}
+                </button>
+              )}
+              {!allRuns && (
+                <button
+                  type="button"
+                  className={btn}
+                  onClick={() => {
+                    setAllRuns(true);
+                    setOffset(0);
+                  }}
+                >
+                  {t('Show all runs', 'Hiện mọi lần chạy')}
+                </button>
+              )}
+              <Link className={btn} to="/runner">
+                {t('Open Scenario Runner →', 'Mở trang Chạy kịch bản →')}
+              </Link>
+            </>
+          }
         />
       ) : (
         <>
@@ -105,26 +148,28 @@ export function DeadLetters() {
                   </button>
                 }
               >
-                <dl className="mb-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm md:grid-cols-5">
-                  <div>
+                <dl className="mb-3 grid grid-cols-2 gap-x-5 gap-y-2 text-sm sm:grid-cols-3 lg:grid-cols-5">
+                  <div className="min-w-0">
                     <dt className="text-xs text-muted">Delivery</dt>
-                    <dd className="font-mono">{shortId(d.id)}</dd>
+                    <dd className="font-mono break-words">{shortId(d.id)}</dd>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <dt className="text-xs text-muted">{t('Reason', 'Lý do')}</dt>
-                    <dd className="font-mono text-rose-300">{d.terminalReason ?? '—'}</dd>
+                    <dd className="font-mono break-all text-rose-300">{d.terminalReason ?? '—'}</dd>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <dt className="text-xs text-muted">{t('Last error', 'Lỗi gần nhất')}</dt>
-                    <dd className="font-mono text-amber-300">{d.lastErrorCode ?? '—'}</dd>
+                    <dd className="font-mono break-words text-amber-300">
+                      {d.lastErrorCode ?? '—'}
+                    </dd>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <dt className="text-xs text-muted">{t('Attempts', 'Số lần thử')}</dt>
                     <dd className="font-mono">
                       {d.attemptCount}/{d.maxAttempts}
                     </dd>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <dt className="text-xs text-muted">{t('Replays so far', 'Đã gửi lại')}</dt>
                     <dd className="font-mono">{d.replayCount}</dd>
                   </div>

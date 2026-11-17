@@ -134,10 +134,13 @@ export function Events() {
                     <tr key={e.id} className="hover:bg-panel-2">
                       <td className="px-3 py-2">
                         <Link
-                          className="font-mono text-sky-300 hover:underline"
+                          className="inline-flex items-center gap-1.5 font-mono text-sky-300 hover:underline"
                           to={`/events/${e.id}`}
                         >
-                          {shortId(e.id)}
+                          <span>{shortId(e.id)}</span>
+                          <span className="font-sans text-xs text-muted">
+                            ({t('timeline', 'xem từng lần thử')} →)
+                          </span>
                         </Link>
                       </td>
                       <td className="px-3 py-2">{e.type}</td>
