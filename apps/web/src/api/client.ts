@@ -11,6 +11,7 @@ import type {
   ScenarioCatalogEntry,
   RunConfig,
 } from '@lab/shared/web';
+import { demoApi } from './demoSimulator';
 
 export class ApiError extends Error {
   constructor(
@@ -23,11 +24,31 @@ export class ApiError extends Error {
   }
 }
 
+let useSimulatorMode: boolean | null = null;
+
+async function withFallback<T>(realCall: () => Promise<T>, demoCall: () => Promise<T>): Promise<T> {
+  if (useSimulatorMode === true) {
+    return demoCall();
+  }
+  try {
+    const res = await realCall();
+    useSimulatorMode = false;
+    return res;
+  } catch {
+    useSimulatorMode = true;
+    return demoCall();
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
     headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
   });
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new Error('Non-JSON response (static hosting mode)');
+  }
   const text = await res.text();
   const body = text ? (JSON.parse(text) as Record<string, unknown>) : {};
   if (!res.ok) {
@@ -65,26 +86,50 @@ export interface EventsQuery {
 }
 
 export const api = {
-  runs: () => request<RunListItem[]>('/runs'),
-  run: (id: string) => request<RunDto>(`/runs/${id}`),
-  metrics: (id: string) => request<RunMetrics>(`/runs/${id}/metrics`),
+  runs: () => withFallback(() => request<RunListItem[]>('/runs'), () => demoApi.runs()),
+  run: (id: string) => withFallback(() => request<RunDto>(`/runs/${id}`), () => demoApi.run(id)),
+  metrics: (id: string) =>
+    withFallback(() => request<RunMetrics>(`/runs/${id}/metrics`), () => demoApi.metrics(id)),
   scenarios: () =>
-    request<{ defaultConfig: RunConfig; scenarios: ScenarioCatalogEntry[] }>('/scenarios'),
-  createRun: (type: string, body: { seed?: number; config?: Record<string, number> }) =>
-    request<{ runId: string; seed: number }>(`/scenarios/${type}/runs`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-  events: (q: EventsQuery) => request<Paginated<EventSummary>>(`/events${qs({ ...q })}`),
-  event: (id: string) => request<EventDetail>(`/events/${id}`),
-  deadLetters: (q: { runId?: string; limit?: number; offset?: number }) =>
-    request<Paginated<DeadLetterItem>>(`/dead-letters${qs(q)}`),
-  replay: (deliveryId: string) =>
-    request<{ deliveryId: string; replayOfDeliveryId: string; eventId: string }>(
-      `/deliveries/${deliveryId}/replay`,
-      {
-        method: 'POST',
-      },
+    withFallback(
+      () => request<{ defaultConfig: RunConfig; scenarios: ScenarioCatalogEntry[] }>('/scenarios'),
+      () => demoApi.scenarios(),
     ),
-  receiverState: (runId: string) => request<ReceiverStateDto>(`/receiver/state?runId=${runId}`),
+  createRun: (type: string, body: { seed?: number; config?: Record<string, number> }) =>
+    withFallback(
+      () =>
+        request<{ runId: string; seed: number }>(`/scenarios/${type}/runs`, {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }),
+      () => demoApi.createRun(type, body),
+    ),
+  events: (q: EventsQuery) =>
+    withFallback(
+      () => request<Paginated<EventSummary>>(`/events${qs({ ...q })}`),
+      () => demoApi.events(q),
+    ),
+  event: (id: string) =>
+    withFallback(() => request<EventDetail>(`/events/${id}`), () => demoApi.event(id)),
+  deadLetters: (q: { runId?: string; limit?: number; offset?: number }) =>
+    withFallback(
+      () => request<Paginated<DeadLetterItem>>(`/dead-letters${qs(q)}`),
+      () => demoApi.deadLetters(q),
+    ),
+  replay: (deliveryId: string) =>
+    withFallback(
+      () =>
+        request<{ deliveryId: string; replayOfDeliveryId: string; eventId: string }>(
+          `/deliveries/${deliveryId}/replay`,
+          {
+            method: 'POST',
+          },
+        ),
+      () => demoApi.replay(deliveryId),
+    ),
+  receiverState: (runId: string) =>
+    withFallback(
+      () => request<ReceiverStateDto>(`/receiver/state?runId=${runId}`),
+      () => demoApi.receiverState(runId),
+    ),
 };

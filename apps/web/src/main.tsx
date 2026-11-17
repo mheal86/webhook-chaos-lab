@@ -18,11 +18,16 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 1000 } },
 });
 
+const routerBasename =
+  typeof window !== 'undefined' && window.location.pathname.startsWith('/webhook-chaos-lab')
+    ? '/webhook-chaos-lab'
+    : '/';
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LangProvider>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
+        <BrowserRouter basename={routerBasename}>
           <RunProvider>
             <Routes>
               <Route element={<Layout />}>
